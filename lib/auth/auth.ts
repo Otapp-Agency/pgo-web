@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { redirect } from 'next/navigation'
-import { verifySession } from '@/lib/auth/dal'
+import { verifySession } from '@/lib/auth/services/auth.service'
 import { hasPermission, hasAnyPermission, hasAllPermissions, getRolesPermissions } from '@/lib/auth/permissions'
 
 /**

@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/services/auth.service";
 
 export default async function Home() {
   const session = await getSession()

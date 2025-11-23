@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { getUserFromSession } from "@/lib/auth/dal"
+import { getUserFromSession } from "@/lib/auth/services/auth.service"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { logout } from "@/app/actions/auth"
+import { logout } from "@/app/actions/auth.actions"
 import { LogOut, User } from "lucide-react"
 
 export async function SiteHeader() {

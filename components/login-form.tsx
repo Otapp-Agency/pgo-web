@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useActionState } from 'react'
-import { login } from '@/app/actions/auth'
+import { login } from '@/app/actions/auth.actions'
 import Image from "next/image"
 
 export function LoginForm({

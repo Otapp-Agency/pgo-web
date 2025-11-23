@@ -7,7 +7,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { verifySession } from "@/lib/auth/dal"
+import { verifySession } from "@/lib/auth/services/auth.service"
 
 import data from "./data.json"
 

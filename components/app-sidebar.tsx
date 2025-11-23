@@ -9,7 +9,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { getUserFromSession, verifySession } from "@/lib/auth/dal"
+import { getUserFromSession, verifySession } from "@/lib/auth/services/auth.service"
 import { menuConfig } from "@/lib/menu-config"
 import { filterMenuItems } from "@/lib/menu-utils"
 import { Logo } from "@/components/logo"

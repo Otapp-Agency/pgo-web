@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { decrypt } from '@/lib/auth/session'
+import { decryptSession } from '@/lib/auth/dal/session.dal'
 
 const publicRoutes = ['/login']
 
@@ -11,7 +11,7 @@ export default async function proxy(req: NextRequest) {
   const isProtected = !isPublicRoute
 
   const cookie = req.cookies.get('session')?.value
-  const session = await decrypt(cookie)
+  const session = await decryptSession(cookie)
 
   // Check if session exists and is not expired
   const isValidSession = session?.userId && (!session.expiresAt || session.expiresAt > Date.now())
