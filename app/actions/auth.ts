@@ -1,7 +1,7 @@
 'use server'
 
 import { FormState, LoginFormSchema } from '@/lib/definitions'
-import { createSession, deleteSession } from '@/lib/session'
+import { createSession, deleteSession } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { API_CONFIG } from '@/lib/config/api'
 import { API_ENDPOINTS } from '@/lib/config/endpoints'

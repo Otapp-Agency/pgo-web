@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { getUserFromSession } from "@/lib/dal"
+import { getUserFromSession } from "@/lib/auth/dal"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -33,20 +33,20 @@ export async function SiteHeader() {
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarFallback className="text-xs">
-                      {user.name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || 'U'}
+                      {user.username?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:inline">{user.name || user.username}</span>
+                  <span className="hidden sm:inline">{user.username}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name || user.username}</p>
+                    <p className="text-sm font-medium leading-none">{user.username}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    {user.roles && user.roles.length > 0 && (
+                    {user.role && user.role.length > 0 && (
                       <p className="text-xs leading-none text-muted-foreground mt-1">
-                        {user.roles.join(', ')}
+                        {user.role}
                       </p>
                     )}
                   </div>

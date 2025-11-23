@@ -1,7 +1,7 @@
 'use server'
 
-import { checkPermission, requirePermission } from '@/lib/auth'
-import { PERMISSIONS } from '@/lib/permissions'
+import { checkPermission, requirePermission } from '@/lib/auth/auth'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 import { FormState } from '@/lib/definitions'
 
 /**

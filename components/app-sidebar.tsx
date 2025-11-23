@@ -1,92 +1,31 @@
 import * as React from "react"
-import { IconInnerShadowTop } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { getUserFromSession } from "@/lib/dal"
-
-const navData = {
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: "IconDashboard",
-    },
-    {
-      title: "Lifecycle",
-      url: "#",
-      icon: "IconListDetails",
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: "IconChartBar",
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: "IconFolder",
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: "IconUsers",
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: "IconSettings",
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: "IconHelp",
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: "IconSearch",
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: "IconDatabase",
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: "IconReport",
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: "IconFileWord",
-    },
-  ],
-}
+import { getUserFromSession, verifySession } from "@/lib/auth/dal"
+import { menuConfig } from "@/lib/menu-config"
+import { filterMenuItems } from "@/lib/menu-utils"
+import { Logo } from "@/components/logo"
 
 export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = await getUserFromSession()
-  
+  const session = await verifySession()
+  const userRoles = session?.roles || []
+
+  // Filter menu items based on user roles
+  const filteredNavMain = filterMenuItems(menuConfig.navMain, userRoles)
+
   const userData = user ? {
-    name: user.name,
+    name: `${user.firstName} ${user.lastName}`.trim() || user.username,
     email: user.email,
-    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`,
+    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(`${user.firstName} ${user.lastName}`.trim() || user.username)}&background=random`,
   } : {
     name: "Guest",
     email: "",
@@ -96,24 +35,11 @@ export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sideb
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="/dashboard">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <Logo />
       </SidebarHeader>
+      <SidebarSeparator />
       <SidebarContent>
-        <NavMain items={navData.navMain} />
-        <NavDocuments items={navData.documents} />
-        <NavSecondary items={navData.navSecondary} className="mt-auto" />
+        <NavMain items={filteredNavMain} />
       </SidebarContent>
       <SidebarFooter>
         {user && <NavUser user={userData} />}

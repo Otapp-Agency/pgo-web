@@ -1,14 +1,14 @@
 import 'server-only'
 
 import { cookies } from 'next/headers'
-import { decrypt } from '@/lib/session'
+import { decrypt } from '@/lib/auth/session'
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { API_CONFIG } from '@/lib/config/api'
 import { buildEndpointUrl } from '@/lib/config/endpoints'
 import { User, ApiResponse } from '@/lib/types'
 import { SessionPayload } from '@/lib/definitions'
-import { getRolesPermissions } from '@/lib/permissions'
+import { getRolesPermissions } from '@/lib/auth/permissions'
 
 export const verifySession = cache(async () => {
   const cookie = (await cookies()).get('session')?.value

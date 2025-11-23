@@ -1,8 +1,8 @@
 import 'server-only'
 
 import { redirect } from 'next/navigation'
-import { verifySession } from '@/lib/dal'
-import { hasPermission, hasAnyPermission, hasAllPermissions, getRolesPermissions } from '@/lib/permissions'
+import { verifySession } from '@/lib/auth/dal'
+import { hasPermission, hasAnyPermission, hasAllPermissions, getRolesPermissions } from '@/lib/auth/permissions'
 
 /**
  * Check if the current user has a specific permission
