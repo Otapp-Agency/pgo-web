@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
+import { CreateMerchantRequestSchema } from '@/lib/definitions';
 
 export async function GET(request: NextRequest) {
     try {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
             'per_page',
             'search',
             'status',
-            'type',
+            'merchantType',
             'kyc_verified',
             'sort',
         ];
@@ -80,34 +81,49 @@ export async function GET(request: NextRequest) {
         // We need: { data: Merchant[], pageNumber, pageSize, totalElements, totalPages, last, first }
         if (data.data && Array.isArray(data.data)) {
             // Transform field names from backend format to frontend format
-            const transformedData = data.data.map((merchant: {
-                id: string;
-                uid: string;
-                code: string;
-                name: string;
-                type?: string;
-                status?: string;
-                active?: boolean;
-                kycVerified?: boolean;
-                email?: string | null;
-                contactInfo?: string | null;
-                description?: string | null;
-                createdAt?: string | null;
-                updatedAt?: string | null;
-            }) => ({
-                id: merchant.id,
-                uid: merchant.uid,
-                code: merchant.code,
-                name: merchant.name,
-                type: merchant.type ?? '',
-                status: merchant.status ?? (merchant.active ? 'active' : 'inactive'),
-                kyc_verified: merchant.kycVerified ?? false,
-                email: merchant.email ?? null,
-                contact_info: merchant.contactInfo ?? null,
-                description: merchant.description ?? null,
-                created_at: merchant.createdAt ?? null,
-                updated_at: merchant.updatedAt ?? null,
-            }));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const transformedData = data.data.map((merchant: any) => {
+                // Normalize status to uppercase (ACTIVE, SUSPENDED, INACTIVE)
+                let normalizedStatus = merchant.status || merchant.activeStatus || '';
+                if (!normalizedStatus && merchant.active !== undefined) {
+                    normalizedStatus = merchant.active ? 'ACTIVE' : 'INACTIVE';
+                }
+                // Ensure uppercase
+                normalizedStatus = normalizedStatus.toUpperCase();
+                
+                return {
+                    id: merchant.id,
+                    uid: merchant.uid,
+                    code: merchant.code,
+                    name: merchant.name,
+                    business_name: merchant.businessName ?? null,
+                    business_registration_number: merchant.businessRegistrationNumber ?? null,
+                    business_address: merchant.businessAddress ?? null,
+                    business_city: merchant.businessCity ?? null,
+                    business_state: merchant.businessState ?? null,
+                    business_postal_code: merchant.businessPostalCode ?? null,
+                    business_country: merchant.businessCountry ?? null,
+                    contact_email: merchant.contactEmail ?? null,
+                    contact_phone: merchant.contactPhone ?? null,
+                    website_url: merchant.websiteUrl ?? null,
+                    merchant_type: merchant.merchantType ?? null,
+                    status: normalizedStatus || 'ACTIVE',
+                    status_reason: merchant.statusReason ?? null,
+                    merchant_role: merchant.merchantRole ?? null,
+                    kyc_verified: merchant.kycVerified ?? false,
+                    kyc_status: merchant.kycStatus ?? null,
+                    kyc_notes: merchant.kycNotes ?? null,
+                    kyc_verified_at: merchant.kycVerifiedAt ?? null,
+                    kyc_verified_by: merchant.kycVerifiedBy ?? null,
+                    single_transaction_limit: merchant.singleTransactionLimit ?? null,
+                    daily_transaction_limit: merchant.dailyTransactionLimit ?? null,
+                    monthly_transaction_limit: merchant.monthlyTransactionLimit ?? null,
+                    parent_merchant_uid: merchant.parentMerchantUid ?? null,
+                    parent_merchant_name: merchant.parentMerchantName ?? null,
+                    created_at: merchant.createdAt ?? null,
+                    updated_at: merchant.updatedAt ?? null,
+                };
+            });
 
             // Backend uses 0-based pagination, frontend also uses 0-based
             const backendPageNumber = data.pageNumber ?? parseInt(searchParams.get('page') || '0');
@@ -128,34 +144,49 @@ export async function GET(request: NextRequest) {
             // Use 0-based pagination to match the paginated format branch
             const page = parseInt(searchParams.get('page') || '0');
             const perPage = parseInt(searchParams.get('per_page') || '15');
-            const transformedData = data.map((merchant: {
-                id: string;
-                uid: string;
-                code: string;
-                name: string;
-                type?: string;
-                status?: string;
-                active?: boolean;
-                kycVerified?: boolean;
-                email?: string | null;
-                contactInfo?: string | null;
-                description?: string | null;
-                createdAt?: string | null;
-                updatedAt?: string | null;
-            }) => ({
-                id: merchant.id,
-                uid: merchant.uid,
-                code: merchant.code,
-                name: merchant.name,
-                type: merchant.type ?? '',
-                status: merchant.status ?? (merchant.active ? 'active' : 'inactive'),
-                kyc_verified: merchant.kycVerified ?? false,
-                email: merchant.email ?? null,
-                contact_info: merchant.contactInfo ?? null,
-                description: merchant.description ?? null,
-                created_at: merchant.createdAt ?? null,
-                updated_at: merchant.updatedAt ?? null,
-            }));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const transformedData = data.map((merchant: any) => {
+                // Normalize status to uppercase (ACTIVE, SUSPENDED, INACTIVE)
+                let normalizedStatus = merchant.status || merchant.activeStatus || '';
+                if (!normalizedStatus && merchant.active !== undefined) {
+                    normalizedStatus = merchant.active ? 'ACTIVE' : 'INACTIVE';
+                }
+                // Ensure uppercase
+                normalizedStatus = normalizedStatus.toUpperCase();
+                
+                return {
+                    id: merchant.id,
+                    uid: merchant.uid,
+                    code: merchant.code,
+                    name: merchant.name,
+                    business_name: merchant.businessName ?? null,
+                    business_registration_number: merchant.businessRegistrationNumber ?? null,
+                    business_address: merchant.businessAddress ?? null,
+                    business_city: merchant.businessCity ?? null,
+                    business_state: merchant.businessState ?? null,
+                    business_postal_code: merchant.businessPostalCode ?? null,
+                    business_country: merchant.businessCountry ?? null,
+                    contact_email: merchant.contactEmail ?? null,
+                    contact_phone: merchant.contactPhone ?? null,
+                    website_url: merchant.websiteUrl ?? null,
+                    merchant_type: merchant.merchantType ?? null,
+                    status: normalizedStatus || 'ACTIVE',
+                    status_reason: merchant.statusReason ?? null,
+                    merchant_role: merchant.merchantRole ?? null,
+                    kyc_verified: merchant.kycVerified ?? false,
+                    kyc_status: merchant.kycStatus ?? null,
+                    kyc_notes: merchant.kycNotes ?? null,
+                    kyc_verified_at: merchant.kycVerifiedAt ?? null,
+                    kyc_verified_by: merchant.kycVerifiedBy ?? null,
+                    single_transaction_limit: merchant.singleTransactionLimit ?? null,
+                    daily_transaction_limit: merchant.dailyTransactionLimit ?? null,
+                    monthly_transaction_limit: merchant.monthlyTransactionLimit ?? null,
+                    parent_merchant_uid: merchant.parentMerchantUid ?? null,
+                    parent_merchant_name: merchant.parentMerchantName ?? null,
+                    created_at: merchant.createdAt ?? null,
+                    updated_at: merchant.updatedAt ?? null,
+                };
+            });
             const paginatedResponse = {
                 data: transformedData,
                 pageNumber: page,
@@ -176,6 +207,96 @@ export async function GET(request: NextRequest) {
         }
     } catch (error) {
         console.error('Error fetching merchants:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * POST /api/merchants - Create a new merchant
+ */
+export async function POST(request: NextRequest) {
+    try {
+        // Get session for authentication
+        const session = await getSession();
+
+        if (!session?.token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        // Parse and validate request body
+        const body = await request.json();
+        const validationResult = CreateMerchantRequestSchema.safeParse(body);
+
+        if (!validationResult.success) {
+            return NextResponse.json(
+                { 
+                    error: 'Validation failed',
+                    details: validationResult.error.flatten().fieldErrors,
+                },
+                { status: 400 }
+            );
+        }
+
+        const merchantData = validationResult.data;
+
+        // Build the URL
+        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.merchants.create}`;
+
+        // Send to backend API
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.token}`,
+            },
+            body: JSON.stringify(merchantData),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            console.error('Backend create merchant error:', {
+                status: response.status,
+                data,
+            });
+            return NextResponse.json(
+                { error: data.message || data.error || 'Failed to create merchant' },
+                { status: response.status }
+            );
+        }
+
+        // Transform response to frontend format
+        const merchant = data.data || data;
+        const transformedMerchant = merchant && merchant.id ? {
+            id: merchant.id,
+            uid: merchant.uid,
+            code: merchant.code || merchant.merchantCode,
+            name: merchant.name || merchant.merchantName,
+            type: merchant.type || merchant.merchantType || null,
+            status: merchant.status ?? 'ACTIVE',
+            kyc_verified: merchant.kycVerified ?? merchant.kyc_verified ?? false,
+            email: merchant.email || merchant.contactEmail || null,
+            contact_info: merchant.contactInfo ?? merchant.contact_info ?? merchant.contactPhone ?? null,
+            description: merchant.description ?? null,
+            created_at: merchant.createdAt ?? merchant.created_at ?? null,
+            updated_at: merchant.updatedAt ?? merchant.updated_at ?? null,
+        } : null;
+
+        return NextResponse.json(
+            {
+                message: data.message || 'Merchant created successfully',
+                merchant: transformedMerchant,
+            },
+            { status: 201 }
+        );
+    } catch (error) {
+        console.error('Error creating merchant:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

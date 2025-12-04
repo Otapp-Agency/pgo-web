@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MerchantsTable } from './merchants-table';
+import { NewMerchantDrawer } from './new-merchant-drawer';
 import { merchantsListQueryOptions, type MerchantListParams } from '@/features/merchants/queries/merchants';
 import { useMerchantsTableStore } from '@/lib/stores/merchants-table-store';
 
@@ -30,7 +31,7 @@ export default function MerchantsList() {
 
     // Convert column filters to query parameters
     const filterParams = useMemo(() => {
-        const params: { status?: string; type?: string; kyc_verified?: boolean } = {};
+        const params: { status?: string; merchantType?: string; kyc_verified?: boolean } = {};
 
         columnFilters.forEach(filter => {
             if (filter.id === 'status' && Array.isArray(filter.value)) {
@@ -40,11 +41,11 @@ export default function MerchantsList() {
                     // Backend might expect single value or comma-separated
                     params.status = statusValues.join(',');
                 }
-            } else if (filter.id === 'type' && Array.isArray(filter.value)) {
-                // For type filter, join multiple values with comma
+            } else if (filter.id === 'merchant_type' && Array.isArray(filter.value)) {
+                // For merchant type filter, join multiple values with comma
                 const typeValues = filter.value as string[];
                 if (typeValues.length > 0) {
-                    params.type = typeValues.join(',');
+                    params.merchantType = typeValues.join(',');
                 }
             } else if (filter.id === 'kyc_verified' && Array.isArray(filter.value)) {
                 // For KYC filter, convert boolean strings to actual boolean
@@ -150,6 +151,15 @@ export default function MerchantsList() {
 
     return (
         <div className="@container/main flex flex-1 flex-col gap-2 py-2">
+            <div className="flex items-center justify-between px-4 lg:px-6">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Merchants</h1>
+                    <p className="text-muted-foreground">
+                        Manage merchants and their configurations.
+                    </p>
+                </div>
+                <NewMerchantDrawer />
+            </div>
             <MerchantsTable
                 data={merchants}
                 paginationMeta={paginationMeta}

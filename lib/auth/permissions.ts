@@ -71,6 +71,16 @@ export const PERMISSIONS = {
         ALL: 'roles.*',
     },
 
+    // Payment Gateway Management
+    PAYMENT_GATEWAYS: {
+        VIEW: 'payment_gateways.view',
+        CREATE: 'payment_gateways.create',
+        UPDATE: 'payment_gateways.update',
+        DELETE: 'payment_gateways.delete',
+        TOGGLE_STATUS: 'payment_gateways.toggle_status',
+        ALL: 'payment_gateways.*',
+    },
+
     // audit and logs
     AUDIT_AND_LOGS: {
         VIEW: 'audit_and_logs.view',
@@ -98,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         PERMISSIONS.TRANSACTIONS.ALL,
         PERMISSIONS.DISBURSEMENTS.ALL,
         PERMISSIONS.MERCHANTS.ALL,
+        PERMISSIONS.PAYMENT_GATEWAYS.ALL,
         PERMISSIONS.ROLES.VIEW,
         PERMISSIONS.AUDIT_AND_LOGS.VIEW,
     ],
@@ -108,6 +119,8 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         PERMISSIONS.DISBURSEMENTS.VIEW,
         PERMISSIONS.MERCHANTS.VIEW,
         PERMISSIONS.MERCHANTS.UPDATE,
+        PERMISSIONS.PAYMENT_GATEWAYS.VIEW,
+        PERMISSIONS.PAYMENT_GATEWAYS.UPDATE,
         PERMISSIONS.AUDIT_AND_LOGS.VIEW,
     ],
 
@@ -123,6 +136,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
         PERMISSIONS.TRANSACTIONS.VIEW,
         PERMISSIONS.DISBURSEMENTS.VIEW,
         PERMISSIONS.MERCHANTS.VIEW,
+        PERMISSIONS.PAYMENT_GATEWAYS.VIEW,
         PERMISSIONS.AUDIT_AND_LOGS.VIEW,
     ],
 }

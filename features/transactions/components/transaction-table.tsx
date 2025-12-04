@@ -12,30 +12,34 @@ import {
     IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
+    IconDownload,
     IconLayoutColumns,
     IconLoader,
 } from "@tabler/icons-react"
 import {
     ColumnDef,
-    ColumnFiltersState,
     flexRender,
     getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
     Header,
-    SortingState,
     useReactTable,
     VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
 
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Transaction, TransactionSchema } from "@/lib/definitions"
-import { API_CONFIG } from "@/lib/config/api"
-import { buildEndpointUrl } from "@/lib/config/endpoints"
+import { exportTransactions, ExportFormat } from "@/features/transactions/queries/export"
+import { transactionsKeys, retryTransaction } from "@/features/transactions/queries/transactions"
+import {
+    RefundTransactionDialog,
+    CompleteTransactionDialog,
+    CancelTransactionDialog,
+} from "@/features/transactions/components/transaction-action-dialogs"
+import { TransactionFilters } from "@/features/transactions/components/transaction-filters"
+import { useTransactionsTableStore } from "@/lib/stores/transactions-table-store"
+import { toast } from "sonner"
 
 // Re-export schema for build compatibility
 export const schema = TransactionSchema
@@ -147,71 +151,66 @@ function SortableHeader({
     )
 }
 
+// Status-based action visibility helpers
+const RETRY_STATUSES = ['FAILED', 'TIMEOUT', 'ERROR']
+const REFUND_STATUSES = ['SUCCESS', 'COMPLETED']
+const COMPLETE_STATUSES = ['PENDING', 'PROCESSING']
+const CANCEL_STATUSES = ['PENDING', 'PROCESSING']
+
+function canRetry(status: string): boolean {
+    return RETRY_STATUSES.includes(status.toUpperCase())
+}
+
+function canRefund(status: string): boolean {
+    return REFUND_STATUSES.includes(status.toUpperCase())
+}
+
+function canComplete(status: string): boolean {
+    return COMPLETE_STATUSES.includes(status.toUpperCase())
+}
+
+function canCancel(status: string): boolean {
+    return CANCEL_STATUSES.includes(status.toUpperCase())
+}
+
 // Actions cell component
 function ActionsCell({ transaction }: { transaction: Transaction }) {
-    const transactionId = transaction.uid || transaction.id
+    // Use numeric id for API calls (backend expects Long type)
+    const transactionId = transaction.id
+    // Use uid or merchantTransactionId for display purposes
+    const transactionRef = transaction.merchantTransactionId || transaction.internalTransactionId || transaction.uid
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const isMobile = useIsMobile()
+    const queryClient = useQueryClient()
 
     const handleViewDetails = () => {
         setIsDetailsOpen(true)
     }
 
-    const handleRetry = async () => {
-        try {
-            const response = await fetch(
-                `${API_CONFIG.baseURL}${buildEndpointUrl.retryTransaction(transactionId)}`,
-                {
-                    method: "POST",
-                    headers: {
-                        ...API_CONFIG.headers,
-                        // Authorization header should be added by middleware or API route
-                    },
-                    credentials: "include",
-                }
-            )
+    // Retry mutation
+    const retryMutation = useMutation({
+        mutationFn: () => retryTransaction(transactionId),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: transactionsKeys.detail(transactionId) })
+            toast.success(data.message || 'Transaction retry initiated successfully')
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to retry transaction')
+        },
+    })
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(errorData.message || "Failed to retry transaction")
-            }
-
-            const result = await response.json()
-            console.log("Transaction retry successful:", result)
-            // Optionally refresh the table data or show a success message
-        } catch (error) {
-            console.error("Error retrying transaction:", error)
-            // Optionally show an error toast/notification
-        }
+    const handleRetry = () => {
+        retryMutation.mutate()
     }
 
-    const handleRefund = async () => {
-        try {
-            const response = await fetch(
-                `${API_CONFIG.baseURL}${buildEndpointUrl.refundTransaction(transactionId)}`,
-                {
-                    method: "POST",
-                    headers: {
-                        ...API_CONFIG.headers,
-                        // Authorization header should be added by middleware or API route
-                    },
-                    credentials: "include",
-                }
-            )
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(errorData.message || "Failed to refund transaction")
-            }
-
-            const result = await response.json()
-            console.log("Transaction refund successful:", result)
-            // Optionally refresh the table data or show a success message
-        } catch (error) {
-            console.error("Error refunding transaction:", error)
-            // Optionally show an error toast/notification
-        }
-    }
+    // Determine which actions are available based on status
+    const status = transaction.status?.toUpperCase() || ''
+    const showRetry = canRetry(status)
+    const showRefund = canRefund(status)
+    const showComplete = canComplete(status)
+    const showCancel = canCancel(status)
+    const hasActions = showRetry || showRefund || showComplete || showCancel
 
     return (
         <>
@@ -226,17 +225,76 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                         <span className="sr-only">Open menu</span>
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem onClick={handleViewDetails}>
                         View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleRetry}>
-                        Retry
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onClick={handleRefund}>
-                        Refund
-                    </DropdownMenuItem>
+                    
+                    {hasActions && <DropdownMenuSeparator />}
+                    
+                    {showRetry && (
+                        <DropdownMenuItem 
+                            onClick={handleRetry}
+                            disabled={retryMutation.isPending}
+                        >
+                            {retryMutation.isPending ? (
+                                <IconLoader className="mr-2 size-4 animate-spin" />
+                            ) : null}
+                            Retry
+                        </DropdownMenuItem>
+                    )}
+                    
+                    {showComplete && (
+                        <CompleteTransactionDialog
+                            transactionId={transactionId}
+                            transactionRef={transactionRef}
+                            amount={transaction.amount}
+                            currency={transaction.currency}
+                            trigger={
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    Complete
+                                </DropdownMenuItem>
+                            }
+                        />
+                    )}
+                    
+                    {(showRefund || showCancel) && (showRetry || showComplete) && (
+                        <DropdownMenuSeparator />
+                    )}
+                    
+                    {showRefund && (
+                        <RefundTransactionDialog
+                            transactionId={transactionId}
+                            transactionRef={transactionRef}
+                            amount={transaction.amount}
+                            currency={transaction.currency}
+                            trigger={
+                                <DropdownMenuItem 
+                                    variant="destructive" 
+                                    onSelect={(e) => e.preventDefault()}
+                                >
+                                    Refund
+                                </DropdownMenuItem>
+                            }
+                        />
+                    )}
+                    
+                    {showCancel && (
+                        <CancelTransactionDialog
+                            transactionId={transactionId}
+                            transactionRef={transactionRef}
+                            amount={transaction.amount}
+                            currency={transaction.currency}
+                            trigger={
+                                <DropdownMenuItem 
+                                    variant="destructive" 
+                                    onSelect={(e) => e.preventDefault()}
+                                >
+                                    Cancel
+                                </DropdownMenuItem>
+                            }
+                        />
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
             <Drawer open={isDetailsOpen} onOpenChange={setIsDetailsOpen} direction={isMobile ? "bottom" : "right"}>
@@ -610,24 +668,37 @@ const columns: ColumnDef<Transaction>[] = [
 ]
 
 
+interface PaginationMeta {
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    last: boolean;
+    first: boolean;
+}
+
 export function TransactionTable({
     data,
+    paginationMeta,
     isLoading = false,
 }: {
     data: Transaction[];
+    paginationMeta: PaginationMeta;
     isLoading?: boolean;
 }) {
-    const [rowSelection, setRowSelection] = React.useState({})
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({})
-    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-        []
-    )
-    const [sorting, setSorting] = React.useState<SortingState>([])
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 10,
-    })
+    // Get state from Zustand store
+    const {
+        pagination,
+        sorting,
+        columnVisibility,
+        rowSelection,
+        filters,
+        setPageIndex,
+        setPageSize,
+        setSorting,
+        setColumnVisibility,
+        setRowSelection,
+    } = useTransactionsTableStore()
 
     const table = useReactTable({
         data,
@@ -636,134 +707,61 @@ export function TransactionTable({
             sorting,
             columnVisibility,
             rowSelection,
-            columnFilters,
-            pagination,
         },
         getRowId: (row) => row.uid,
         enableRowSelection: true,
         onRowSelectionChange: setRowSelection,
         onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
+        // Server-side pagination - don't use client-side models
+        manualPagination: true,
+        manualSorting: true,
+        manualFiltering: true,
+        pageCount: paginationMeta.totalPages,
     })
 
+    // Export handler using store filters
+    const handleExport = React.useCallback(async (format: ExportFormat) => {
+        try {
+            // Build export params from store filters
+            const exportParams: Parameters<typeof exportTransactions>[0] = {
+                format,
+            }
 
-    // Get unique values for filters
-    const statusColumn = table.getColumn("status")
-    const pgoColumn = table.getColumn("pgoName")
+            // Add filters from store
+            if (filters.status) {
+                exportParams.status = filters.status
+            }
+            if (filters.startDate) {
+                exportParams.start_date = filters.startDate
+            }
+            if (filters.endDate) {
+                exportParams.end_date = filters.endDate
+            }
+            if (filters.amountMin) {
+                exportParams.amount_min = filters.amountMin
+            }
+            if (filters.amountMax) {
+                exportParams.amount_max = filters.amountMax
+            }
 
-    const statusValues = React.useMemo(() => {
-        const uniqueStatuses = new Set(data.map((t) => t.status))
-        return Array.from(uniqueStatuses).sort()
-    }, [data])
-
-    const pgoValues = React.useMemo(() => {
-        const uniquePgos = new Set(data.map((t) => t.pgoName).filter(Boolean))
-        return Array.from(uniquePgos).sort()
-    }, [data])
-
-    const statusFilter = statusColumn?.getFilterValue() as string[] | undefined
-    const pgoFilter = pgoColumn?.getFilterValue() as string[] | undefined
+            await exportTransactions(exportParams)
+            toast.success(`Exporting transactions as ${format.toUpperCase()}...`)
+        } catch (error) {
+            console.error('Export error:', error)
+            toast.error(error instanceof Error ? error.message : 'Failed to export transactions')
+        }
+    }, [filters])
 
     return (
         <div className="w-full flex flex-col gap-6">
-            <div className="flex items-center justify-end gap-2 px-4 lg:px-6 shrink-0">
-                {/* Status Filter */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            Status
-                            {statusFilter && statusFilter.length > 0 && (
-                                <Badge variant="secondary" className="ml-2">
-                                    {statusFilter.length}
-                                </Badge>
-                            )}
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuCheckboxItem
-                            checked={!statusFilter || statusFilter.length === 0}
-                            onCheckedChange={() => {
-                                statusColumn?.setFilterValue(undefined)
-                            }}
-                        >
-                            All Statuses
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSeparator />
-                        {statusValues.map((status) => (
-                            <DropdownMenuCheckboxItem
-                                key={status}
-                                checked={statusFilter?.includes(status) ?? false}
-                                onCheckedChange={(checked) => {
-                                    const currentFilter = statusFilter || []
-                                    if (checked) {
-                                        statusColumn?.setFilterValue([...currentFilter, status])
-                                    } else {
-                                        statusColumn?.setFilterValue(
-                                            currentFilter.filter((v) => v !== status)
-                                        )
-                                    }
-                                }}
-                            >
-                                {status}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="flex flex-wrap items-center justify-between gap-4 px-4 lg:px-6 shrink-0">
+                {/* Server-side Filters */}
+                <TransactionFilters />
 
-                {/* PGO Filter */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            PGO
-                            {pgoFilter && pgoFilter.length > 0 && (
-                                <Badge variant="secondary" className="ml-2">
-                                    {pgoFilter.length}
-                                </Badge>
-                            )}
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuCheckboxItem
-                            checked={!pgoFilter || pgoFilter.length === 0}
-                            onCheckedChange={() => {
-                                pgoColumn?.setFilterValue(undefined)
-                            }}
-                        >
-                            All PGOs
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSeparator />
-                        {pgoValues.map((pgo) => (
-                            <DropdownMenuCheckboxItem
-                                key={pgo}
-                                checked={pgoFilter?.includes(pgo) ?? false}
-                                onCheckedChange={(checked) => {
-                                    const currentFilter = pgoFilter || []
-                                    if (checked) {
-                                        pgoColumn?.setFilterValue([...currentFilter, pgo])
-                                    } else {
-                                        pgoColumn?.setFilterValue(
-                                            currentFilter.filter((v) => v !== pgo)
-                                        )
-                                    }
-                                }}
-                            >
-                                {pgo}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Customize Columns */}
+                <div className="flex items-center gap-2">
+                    {/* Customize Columns */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -796,6 +794,26 @@ export function TransactionTable({
                             })}
                     </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Export */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <IconDownload />
+                            <span className="hidden lg:inline">Export</span>
+                            <IconChevronDown />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleExport('csv')}>
+                            Export as CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExport('excel')}>
+                            Export as Excel
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                </div>
             </div>
             <div className="relative flex flex-col gap-4 px-4 lg:px-6 min-w-0">
                 <div className="w-full overflow-x-auto rounded-lg border">
@@ -851,8 +869,8 @@ export function TransactionTable({
                 </div>
                 <div className="flex items-center justify-between px-4 flex-shrink-0">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
-                        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                        {table.getFilteredRowModel().rows.length} row(s) selected.
+                        {Object.keys(rowSelection).length} of{" "}
+                        {paginationMeta.totalElements} row(s) selected.
                     </div>
                     <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
                         <div className="hidden items-center gap-2 lg:flex">
@@ -860,14 +878,14 @@ export function TransactionTable({
                                 Rows per page
                             </Label>
                             <Select
-                                value={`${table.getState().pagination.pageSize}`}
+                                value={`${pagination.pageSize}`}
                                 onValueChange={(value) => {
-                                    table.setPageSize(Number(value))
+                                    setPageSize(Number(value))
                                 }}
                             >
                                 <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                                     <SelectValue
-                                        placeholder={table.getState().pagination.pageSize}
+                                        placeholder={pagination.pageSize}
                                     />
                                 </SelectTrigger>
                                 <SelectContent side="top">
@@ -880,15 +898,15 @@ export function TransactionTable({
                             </Select>
                         </div>
                         <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{" "}
-                            {table.getPageCount()}
+                            Page {pagination.pageIndex + 1} of{" "}
+                            {paginationMeta.totalPages || 1}
                         </div>
                         <div className="ml-auto flex items-center gap-2 lg:ml-0">
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => table.setPageIndex(0)}
-                                disabled={!table.getCanPreviousPage()}
+                                onClick={() => setPageIndex(0)}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to first page</span>
                                 <IconChevronsLeft />
@@ -897,8 +915,8 @@ export function TransactionTable({
                                 variant="outline"
                                 className="size-8"
                                 size="icon"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
+                                onClick={() => setPageIndex(pagination.pageIndex - 1)}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to previous page</span>
                                 <IconChevronLeft />
@@ -907,8 +925,8 @@ export function TransactionTable({
                                 variant="outline"
                                 className="size-8"
                                 size="icon"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
+                                onClick={() => setPageIndex(pagination.pageIndex + 1)}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to next page</span>
                                 <IconChevronRight />
@@ -917,8 +935,8 @@ export function TransactionTable({
                                 variant="outline"
                                 className="hidden size-8 lg:flex"
                                 size="icon"
-                                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                                disabled={!table.getCanNextPage()}
+                                onClick={() => setPageIndex(paginationMeta.totalPages - 1)}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to last page</span>
                                 <IconChevronsRight />

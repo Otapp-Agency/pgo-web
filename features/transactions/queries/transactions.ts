@@ -82,22 +82,8 @@ export function transactionsListQueryOptions(
     const page = normalizedParams.page ?? PAGINATION.DEFAULT_PAGE;
     const per_page = normalizedParams.per_page ?? PAGINATION.DEFAULT_PAGE_SIZE;
 
-    // Build query string from normalizedParams to match cache key
-    const queryParams = new URLSearchParams();
-    queryParams.set('page', page.toString());
-    queryParams.set('per_page', per_page.toString());
-
-    Object.entries(normalizedParams).forEach(([key, value]) => {
-        // Skip page and per_page as they're already set
-        if (key === 'sort' && Array.isArray(value) && value.length > 0) {
-            // Handle sort as comma-separated string
-            queryParams.set('sort', value.join(','));
-        } else if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
-            queryParams.set(key, value.toString());
-        }
-    });
-
-    const url = `/api/transactions?${queryParams.toString()}`;
+    // Check if we should use search endpoint (when search term is provided)
+    const useSearchEndpoint = !!normalizedParams.search && normalizedParams.search.trim().length > 0;
 
     // Query key uses normalized params to ensure consistent caching
     const queryKey = transactionsKeys.list(normalizedParams);
@@ -107,12 +93,76 @@ export function transactionsListQueryOptions(
         queryFn: async (): Promise<PaginatedTransactionResponse> => {
             // Use absolute URL - construct it based on environment
             let fullUrl: string;
+            let requestOptions: RequestInit;
+
             if (typeof window !== 'undefined') {
                 // Client-side: use window.location.origin
-                fullUrl = `${window.location.origin}${url}`;
+                if (useSearchEndpoint) {
+                    // Use search endpoint with POST
+                    fullUrl = `${window.location.origin}/api/transactions/search?page=${page}&per_page=${per_page}`;
+                    
+                    // Build search criteria from filters
+                    const searchCriteria: Record<string, unknown> = {
+                        searchTerm: normalizedParams.search,
+                    };
+
+                    // Add other filters to search criteria if present
+                    if (normalizedParams.status) {
+                        searchCriteria.status = normalizedParams.status;
+                    }
+                    if (normalizedParams.start_date) {
+                        searchCriteria.createdFrom = `${normalizedParams.start_date}T00:00:00`;
+                    }
+                    if (normalizedParams.end_date) {
+                        searchCriteria.createdTo = `${normalizedParams.end_date}T23:59:59`;
+                    }
+                    if (normalizedParams.amount_min) {
+                        searchCriteria.minAmount = normalizedParams.amount_min;
+                    }
+                    if (normalizedParams.amount_max) {
+                        searchCriteria.maxAmount = normalizedParams.amount_max;
+                    }
+                    if (normalizedParams.sort && normalizedParams.sort.length > 0) {
+                        // Parse sort array to extract sortBy and sortDirection
+                        const firstSort = normalizedParams.sort[0];
+                        const [sortBy, sortDirection] = firstSort.split(',');
+                        if (sortBy) searchCriteria.sortBy = sortBy;
+                        if (sortDirection) searchCriteria.sortDirection = sortDirection.toUpperCase();
+                    }
+
+                    requestOptions = {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(searchCriteria),
+                    };
+                } else {
+                    // Use regular list endpoint with GET
+                    const queryParams = new URLSearchParams();
+                    queryParams.set('page', page.toString());
+                    queryParams.set('per_page', per_page.toString());
+
+                    Object.entries(normalizedParams).forEach(([key, value]) => {
+                        // Skip page and per_page as they're already set
+                        if (key === 'sort' && Array.isArray(value) && value.length > 0) {
+                            // Handle multiple sort parameters - backend expects semicolon-separated
+                            queryParams.set('sort', value.join(';'));
+                        } else if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
+                            queryParams.set(key, value.toString());
+                        }
+                    });
+
+                    fullUrl = `${window.location.origin}/api/transactions?${queryParams.toString()}`;
+                    requestOptions = {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    };
+                }
             } else {
                 // Server-side: this shouldn't happen if prefetch worked
-                // But if it does, return empty paginated response
                 console.warn('QueryFn executed on server - prefetch may have failed');
                 return {
                     data: [],
@@ -125,12 +175,7 @@ export function transactionsListQueryOptions(
                 };
             }
 
-            const response = await fetch(fullUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await fetch(fullUrl, requestOptions);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -214,5 +259,120 @@ export function transactionDetailQueryOptions(transactionId: string) {
         },
         staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
     };
+}
+
+/**
+ * Response type for transaction action mutations
+ */
+export interface TransactionActionResponse {
+    message: string;
+    data?: unknown;
+}
+
+/**
+ * Retry a failed transaction
+ * @param transactionId - The transaction ID (uid) to retry
+ */
+export async function retryTransaction(transactionId: string): Promise<TransactionActionResponse> {
+    const response = await fetch(`/api/transactions/${transactionId}/retry`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to retry transaction',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to retry transaction');
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * Refund a successful transaction
+ * @param transactionId - The transaction ID (uid) to refund
+ * @param params - Refund parameters (refundAmount required, reason optional)
+ */
+export async function refundTransaction(
+    transactionId: string,
+    params: { refundAmount: string; reason?: string }
+): Promise<TransactionActionResponse> {
+    const response = await fetch(`/api/transactions/${transactionId}/refund`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to refund transaction',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to refund transaction');
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * Manually complete a pending/processing transaction
+ * @param transactionId - The transaction ID to complete
+ * @param params - Optional completion parameters (reason)
+ */
+export async function completeTransaction(
+    transactionId: string,
+    params?: { reason?: string }
+): Promise<TransactionActionResponse> {
+    const response = await fetch(`/api/transactions/${transactionId}/complete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params || {}),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to complete transaction',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to complete transaction');
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * Cancel a pending/processing transaction
+ * @param transactionId - The transaction ID (uid) to cancel
+ * @param params - Optional cancellation parameters (reason)
+ */
+export async function cancelTransaction(
+    transactionId: string,
+    params?: { reason?: string }
+): Promise<TransactionActionResponse> {
+    const response = await fetch(`/api/transactions/${transactionId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params || {}),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to cancel transaction',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to cancel transaction');
+    }
+
+    const data = await response.json();
+    return data;
 }
 

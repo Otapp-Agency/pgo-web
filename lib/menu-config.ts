@@ -32,6 +32,12 @@ export const menuConfig = {
             permission: PERMISSIONS.TRANSACTIONS.VIEW,
         },
         {
+            title: "Gateways",
+            url: "/gateways",
+            icon: "IconCreditCard",
+            permission: PERMISSIONS.TRANSACTIONS.VIEW,
+        },
+        {
             title: "Merchants",
             url: "/merchants",
             icon: "IconUsers",

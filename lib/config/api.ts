@@ -104,8 +104,10 @@ export const API_ENDPOINTS = {
     failed: "/admin/v1/transactions/failed",
 
     // Export
+    export: "/admin/v1/transactions/export",
     exportExcel: "/admin/v1/transactions/export/excel",
     exportCsv: "/admin/v1/transactions/export/csv",
+    exportPdf: "/admin/v1/transactions/export/pdf",
 
     // Utility
     exists: "/admin/v1/transactions/exists/{internalTransactionId}",
@@ -189,6 +191,11 @@ export const API_ENDPOINTS = {
     activate: "/admin/v1/merchants/uid/{uid}/activate",
     deactivate: "/admin/v1/merchants/uid/{uid}/deactivate",
     verifyKYC: "/admin/v1/merchants/uid/{uid}/verify-kyc",
+    updateStatus: "/admin/v1/merchants/uid/{uid}/status",
+
+    // Bank Accounts
+    bankAccounts: "/admin/v1/merchants/uid/{uid}/bank-accounts",
+    deactivateBankAccount: "/admin/v1/merchants/uid/{uid}/bank-accounts/{bankAccountUid}",
 
     // Filtering
     byStatus: "/admin/v1/merchants/status/{status}",
@@ -213,15 +220,38 @@ export const API_ENDPOINTS = {
     validateCode: "/admin/v1/merchants/validate-code/{code}",
   },
 
+  // Payment Gateways endpoints
+  paymentGateways: {
+    list: "/admin/v1/payment-gateways",
+    getById: "/admin/v1/payment-gateways/{id}",
+    create: "/admin/v1/payment-gateways",
+    update: "/admin/v1/payment-gateways/{id}",
+    delete: "/admin/v1/payment-gateways/{id}",
+    getAll: "/admin/v1/payment-gateways/all",
+    activate: "/admin/v1/payment-gateways/uid/{uid}/activate",
+    deactivate: "/admin/v1/payment-gateways/uid/{uid}/deactivate",
+
+    // status
+    status: "/admin/v1/payment-gateways/{id}/status",
+
+    // available  
+    available: "/admin/v1/available-payment-gateways",
+  },
+
   // Reports endpoints
   reports: {
-    transactionsMonthly: "/api/v1/reports/transactions/monthly",
-    disbursementsMonthly: "/api/v1/reports/disbursements/monthly",
+    transactionsMonthly: "/admin/v1/reports/transactions/monthly",
+    disbursementsMonthly: "/admin/v1/reports/disbursements/monthly",
   },
 
   // Logs endpoints
   logs: {
-    auditLogs: "/api/v1/audit-logs"
+    auditLogs: "/admin/v1/audit-logs"
+  },
+
+  // Dashboard endpoints
+  dashboard: {
+    stats: "/admin/v1/dashboard/stats",
   },
 };
 

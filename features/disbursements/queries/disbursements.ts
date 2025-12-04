@@ -1,5 +1,6 @@
 import { DisbursementSchema, PaginatedDisbursementResponse } from '@/lib/definitions';
 import { z } from 'zod';
+import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
 
 /**
  * Query keys factory for disbursements
@@ -20,12 +21,13 @@ export interface DisbursementListParams {
     status?: string;
     merchant_id?: string;
     pgo_id?: string;
-    amount_min?: number;
-    amount_max?: number;
-    search_term?: string;
+    amount_min?: string;
+    amount_max?: string;
+    search?: string;
     page?: number;
     per_page?: number;
     source_transaction_id?: string;
+    sort?: string[];
 }
 
 /**
@@ -35,8 +37,8 @@ export interface DisbursementListParams {
  */
 export function normalizeDisbursementParams(params: DisbursementListParams): DisbursementListParams {
     const normalized: DisbursementListParams = {
-        page: params.page ?? 1,
-        per_page: params.per_page ?? 10,
+        page: params.page ?? PAGINATION.DEFAULT_PAGE,
+        per_page: params.per_page ?? PAGINATION.DEFAULT_PAGE_SIZE,
     };
 
     // Add other params only if they have values
@@ -45,10 +47,11 @@ export function normalizeDisbursementParams(params: DisbursementListParams): Dis
     if (params.status) normalized.status = params.status;
     if (params.merchant_id) normalized.merchant_id = params.merchant_id;
     if (params.pgo_id) normalized.pgo_id = params.pgo_id;
-    if (params.amount_min !== undefined && params.amount_min !== null) normalized.amount_min = params.amount_min;
-    if (params.amount_max !== undefined && params.amount_max !== null) normalized.amount_max = params.amount_max;
-    if (params.search_term) normalized.search_term = params.search_term;
+    if (params.amount_min) normalized.amount_min = params.amount_min;
+    if (params.amount_max) normalized.amount_max = params.amount_max;
+    if (params.search) normalized.search = params.search;
     if (params.source_transaction_id) normalized.source_transaction_id = params.source_transaction_id;
+    if (params.sort && params.sort.length > 0) normalized.sort = params.sort;
 
     return normalized;
 }
@@ -80,40 +83,27 @@ function normalizeDisbursementItem(item: Record<string, unknown>): Record<string
 /**
  * Client-side query options for paginated disbursements list
  * Returns paginated response with metadata (pageNumber, pageSize, totalElements, totalPages, etc.)
+ * Uses 1-based pagination
  * 
  * Supports query parameters for filtering:
  * - start_date, end_date, status, merchant_id, pgo_id
- * - amount_min, amount_max, search_term
+ * - amount_min, amount_max, search
  * - page, per_page, source_transaction_id
  */
 export function disbursementsListQueryOptions(
-    params: DisbursementListParams = { page: 1, per_page: 10 }
+    params: DisbursementListParams = { page: PAGINATION.DEFAULT_PAGE, per_page: PAGINATION.DEFAULT_PAGE_SIZE }
 ) {
     // Normalize params to ensure consistent query keys
     const normalizedParams = normalizeDisbursementParams(params);
 
-    // Ensure page and per_page have defaults
-    const page = normalizedParams.page ?? 1;
-    const per_page = normalizedParams.per_page ?? 10;
+    // Ensure page and per_page have defaults (1-based pagination)
+    const page = normalizedParams.page ?? PAGINATION.DEFAULT_PAGE;
+    const per_page = normalizedParams.per_page ?? PAGINATION.DEFAULT_PAGE_SIZE;
 
-    // Build query string from normalizedParams to ensure consistency with cache key
-    const queryParams = new URLSearchParams();
-    queryParams.set('page', page.toString());
-    queryParams.set('per_page', per_page.toString());
-
-    if (normalizedParams) {
-        Object.entries(normalizedParams).forEach(([key, value]) => {
-            // Skip page and per_page as they're already set
-            if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
-                queryParams.set(key, value.toString());
-            }
-        });
-    }
-
-    const url = `/api/disbursements?${queryParams.toString()}`;
+    // Check if we should use search endpoint (when search term is provided)
+    const useSearchEndpoint = !!normalizedParams.search && normalizedParams.search.trim().length > 0;
 
     // Query key uses normalized params to ensure consistent caching
-    // Same params with different object references will now match
     const queryKey = disbursementsKeys.list(normalizedParams);
 
     return {
@@ -121,9 +111,77 @@ export function disbursementsListQueryOptions(
         queryFn: async (): Promise<PaginatedDisbursementResponse> => {
             // Use absolute URL - construct it based on environment
             let fullUrl: string;
+            let requestOptions: RequestInit;
+
             if (typeof window !== 'undefined') {
                 // Client-side: use window.location.origin
-                fullUrl = `${window.location.origin}${url}`;
+                if (useSearchEndpoint) {
+                    // Use search endpoint with POST
+                    fullUrl = `${window.location.origin}/api/disbursements/search?page=${page}&per_page=${per_page}`;
+
+                    // Build search criteria from filters
+                    const searchCriteria: Record<string, unknown> = {
+                        searchTerm: normalizedParams.search,
+                    };
+
+                    // Add other filters to search criteria if present
+                    if (normalizedParams.status) {
+                        searchCriteria.status = normalizedParams.status;
+                    }
+                    if (normalizedParams.start_date) {
+                        searchCriteria.createdFrom = `${normalizedParams.start_date}T00:00:00`;
+                    }
+                    if (normalizedParams.end_date) {
+                        searchCriteria.createdTo = `${normalizedParams.end_date}T23:59:59`;
+                    }
+                    if (normalizedParams.amount_min) {
+                        searchCriteria.minAmount = normalizedParams.amount_min;
+                    }
+                    if (normalizedParams.amount_max) {
+                        searchCriteria.maxAmount = normalizedParams.amount_max;
+                    }
+                    if (normalizedParams.sort && normalizedParams.sort.length > 0) {
+                        // Parse sort array to extract sortBy and sortDirection
+                        const firstSort = normalizedParams.sort[0];
+                        const [sortBy, sortDirection] = firstSort.split(',');
+                        if (sortBy) searchCriteria.sortBy = sortBy;
+                        if (sortDirection) searchCriteria.sortDirection = sortDirection.toUpperCase();
+                    }
+
+                    requestOptions = {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(searchCriteria),
+                    };
+                } else {
+                    // Use regular list endpoint with GET
+                    const queryParams = new URLSearchParams();
+                    queryParams.set('page', page.toString());
+                    queryParams.set('per_page', per_page.toString());
+
+                    Object.entries(normalizedParams).forEach(([key, value]) => {
+                        // Skip page and per_page as they're already set
+                        if (key === 'sort' && Array.isArray(value) && value.length > 0) {
+                            // Handle multiple sort parameters - backend expects semicolon-separated
+                            queryParams.set('sort', value.join(';'));
+                        } else if (key === 'search' && value !== undefined && value !== null && value !== '') {
+                            // Map 'search' to 'search_term' for API compatibility
+                            queryParams.set('search_term', value.toString());
+                        } else if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
+                            queryParams.set(key, value.toString());
+                        }
+                    });
+
+                    fullUrl = `${window.location.origin}/api/disbursements?${queryParams.toString()}`;
+                    requestOptions = {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    };
+                }
             } else {
                 // Server-side: this shouldn't happen if prefetch worked
                 // But if it does, return empty paginated response
@@ -139,12 +197,7 @@ export function disbursementsListQueryOptions(
                 };
             }
 
-            const response = await fetch(fullUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await fetch(fullUrl, requestOptions);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -177,7 +230,7 @@ export function disbursementsListQueryOptions(
                     first: page === 1,
                 };
             } else {
-                // Paginated response format
+                // Paginated response format (already transformed by API route)
                 const transformedData = (responseData.data || []).map((item: Record<string, unknown>) =>
                     normalizeDisbursementItem(item)
                 );
@@ -197,8 +250,94 @@ export function disbursementsListQueryOptions(
 
             return paginatedResponse;
         },
-        staleTime: 30 * 1000, // 30 seconds
+        staleTime: QUERY_CACHE.STALE_TIME_LIST,
         placeholderData: (previousData: PaginatedDisbursementResponse | undefined) => previousData, // Keep previous data while fetching new page
     };
 }
 
+/**
+ * Response type for disbursement action mutations
+ */
+export interface DisbursementActionResponse {
+    message: string;
+    data?: unknown;
+}
+
+/**
+ * Retry a failed disbursement
+ * @param disbursementId - The disbursement ID (uid or numeric id) to retry
+ */
+export async function retryDisbursement(disbursementId: string): Promise<DisbursementActionResponse> {
+    const response = await fetch(`/api/disbursements/${disbursementId}/retry`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to retry disbursement',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to retry disbursement');
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * Manually complete a pending/processing disbursement
+ * @param disbursementId - The disbursement ID to complete
+ * @param params - Optional completion parameters (reason)
+ */
+export async function completeDisbursement(
+    disbursementId: string,
+    params?: { reason?: string }
+): Promise<DisbursementActionResponse> {
+    const response = await fetch(`/api/disbursements/${disbursementId}/complete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params || {}),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to complete disbursement',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to complete disbursement');
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+/**
+ * Cancel a pending/processing disbursement
+ * @param disbursementId - The disbursement ID to cancel
+ * @param params - Optional cancellation parameters (reason)
+ */
+export async function cancelDisbursement(
+    disbursementId: string,
+    params?: { reason?: string }
+): Promise<DisbursementActionResponse> {
+    const response = await fetch(`/api/disbursements/${disbursementId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params || {}),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Failed to cancel disbursement',
+        }));
+        throw new Error(errorData.error || errorData.message || 'Failed to cancel disbursement');
+    }
+
+    const data = await response.json();
+    return data;
+}

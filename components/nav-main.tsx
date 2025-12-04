@@ -8,9 +8,11 @@ import {
   IconChartBar,
   IconFolder,
   IconUsers,
+  IconCreditCard,
 } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
+
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -25,6 +27,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   IconChartBar,
   IconFolder,
   IconUsers,
+  IconCreditCard,
 }
 
 export function NavMain({

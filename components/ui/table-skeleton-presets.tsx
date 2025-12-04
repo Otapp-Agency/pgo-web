@@ -62,5 +62,15 @@ export const LOGS_TABLE_COLUMNS: TableColumnSkeleton[] = [
     { width: 'w-8', type: 'button' }, // Actions
 ];
 
+export const PAYMENT_GATEWAYS_TABLE_COLUMNS: TableColumnSkeleton[] = [
+    { width: 'w-8', type: 'checkbox', align: 'center' },
+    { width: '', type: 'text' }, // Code
+    { width: '', type: 'text' }, // Name
+    { width: '', type: 'badge' }, // Supported Methods
+    { width: '', type: 'badge' }, // Status
+    { width: '', type: 'text' }, // Created
+    { width: 'w-8', type: 'button' }, // Actions
+];
+
 
 

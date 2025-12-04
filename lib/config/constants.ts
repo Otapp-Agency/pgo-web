@@ -82,3 +82,78 @@ export const PAGINATION = {
 
 export type PageSizeOption = (typeof PAGINATION.PAGE_SIZE_OPTIONS)[number];
 
+
+// =============================================================================
+// STATUS COLOR CONSTANTS
+// =============================================================================
+
+/**
+ * Disbursement Statuses display, name, color, and description mapping
+ */
+export const STATUS_DISPLAY = {
+    PENDING: {
+        name: 'Pending',
+        color: '#ffc107',
+        description: 'Awaiting processing'
+    },
+    PROCESSING: {
+        name: 'Processing',
+        color: '#007bff',
+        description: 'Currently being processed'
+    },
+    SUCCESS: {
+        name: 'Successful',
+        color: '#28a745',
+        description: 'Funds successfully transferred'
+    },
+    FAILED: {
+        name: 'Failed',
+        color: '#dc3545',
+        description: 'Disbursement attempt failed'
+    },
+    CANCELLED: {
+        name: 'Cancelled',
+        color: '#6c757d',
+        description: 'Cancelled before processing'
+    },
+    RETRY_ATTEMPTED: {
+        name: 'Retry Attempted',
+        color: '#fd7e14',
+        description: 'A retry has been attempted'
+    },
+    CHAINED: {
+        name: 'Chained',
+        color: '#6f42c1',
+        description: 'Part of a retry chain'
+    },
+    REJECTED: {
+        name: 'Rejected',
+        color: '#dc3545',
+        description: 'Permanently rejected by PSP'
+    },
+    REVERSED: {
+        name: 'Reversed',
+        color: '#fd7e14',
+        description: 'Funds returned after success'
+    },
+    REIMBURSED: {
+        name: 'Reimbursed',
+        color: '#17a2b8',
+        description: 'Manually compensated'
+    },
+    EXPIRED: {
+        name: 'Expired',
+        color: '#6c757d',
+        description: 'Expired and no longer valid'
+    },
+    REFUNDED: {
+        name: 'Refunded',
+        color: '#007bff',
+        description: 'Funds returned after cancellation'
+    },
+    ON_HOLD: {
+        name: 'On Hold',
+        color: '#6c757d',
+        description: 'On Hold and no longer valid'
+    }
+} as const;

@@ -16,6 +16,7 @@ import {
     IconLoader,
     IconShieldCheck,
     IconShieldX,
+    IconTrash,
 } from "@tabler/icons-react"
 import {
     ColumnDef,
@@ -25,16 +26,27 @@ import {
     useReactTable,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
+import { toast } from "sonner"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Merchant, MerchantSchema } from "@/lib/definitions"
 import { useMerchantsTableStore } from "@/lib/stores/merchants-table-store"
+import { useDeleteMerchant, useUpdateMerchantStatus } from "@/features/merchants/queries/merchants"
+import { BankAccountsDrawer } from "./bank-accounts-drawer"
 
 // Re-export schema for build compatibility
 export const schema = MerchantSchema
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import {
     Drawer,
     DrawerClose,
@@ -70,6 +82,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Tooltip,
     TooltipContent,
@@ -216,7 +229,7 @@ const columns: ColumnDef<Merchant>[] = [
         size: 250,
     },
     {
-        accessorKey: "type",
+        accessorKey: "merchant_type",
         header: ({ header }) => (
             <SortableHeader header={header}>
                 Type
@@ -227,33 +240,88 @@ const columns: ColumnDef<Merchant>[] = [
         },
         cell: ({ row }) => (
             <Badge variant="outline" className="px-2 py-0.5 whitespace-nowrap">
-                {row.original.type || "-"}
+                {row.original.merchant_type || "-"}
             </Badge>
         ),
         size: 120,
     },
     {
+        accessorKey: "merchant_role",
+        header: "Role",
+        cell: ({ row }) => {
+            const role = row.original.merchant_role
+            if (!role) return <span className="text-muted-foreground">-</span>
+
+            const roleColors: Record<string, string> = {
+                'ROOT': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                'PLATFORM': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                'SUBMERCHANT': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                'AGENT': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                'PARTNER': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+            }
+
+            return (
+                <Badge variant="outline" className={`px-2 py-0.5 whitespace-nowrap ${roleColors[role] || ''}`}>
+                    {role}
+                </Badge>
+            )
+        },
+        size: 120,
+    },
+    {
+        accessorKey: "contact_email",
+        header: "Email",
+        cell: ({ row }) => (
+            <div className="max-w-[200px]">
+                <div className="truncate text-sm">{row.original.contact_email || "-"}</div>
+            </div>
+        ),
+        size: 200,
+    },
+    {
         accessorKey: "status",
         header: "Status",
         filterFn: (row, id, value) => {
-            const status = row.getValue(id) as string
+            const status = (row.getValue(id) as string).toUpperCase()
             return value.includes(status)
         },
         cell: ({ row }) => {
-            const status = row.original.status
-            const isActive = status === 'active'
+            const status = (row.original.status || '').toUpperCase()
+
+            // Determine badge variant and display based on status
+            const getStatusConfig = () => {
+                switch (status) {
+                    case 'ACTIVE':
+                        return {
+                            variant: 'default' as const,
+                            icon: <IconCircleCheckFilled className="mr-1 size-3" />,
+                            label: 'Active',
+                        }
+                    case 'SUSPENDED':
+                        return {
+                            variant: 'destructive' as const,
+                            icon: <span className="mr-1">⚠</span>,
+                            label: 'Suspended',
+                        }
+                    case 'INACTIVE':
+                    default:
+                        return {
+                            variant: 'secondary' as const,
+                            icon: <span className="mr-1">✕</span>,
+                            label: 'Inactive',
+                        }
+                }
+            }
+
+            const config = getStatusConfig()
 
             return (
                 <Badge
-                    variant={isActive ? "default" : "secondary"}
+                    variant={config.variant}
                     className="px-2 py-0.5 whitespace-nowrap"
                 >
-                    {isActive ? (
-                        <IconCircleCheckFilled className="mr-1 size-3" />
-                    ) : (
-                        <span className="mr-1">✕</span>
-                    )}
-                    {isActive ? 'Active' : 'Inactive'}
+                    {config.icon}
+                    {config.label}
                 </Badge>
             )
         },
@@ -261,7 +329,7 @@ const columns: ColumnDef<Merchant>[] = [
     },
     {
         accessorKey: "kyc_verified",
-        header: "KYC Status",
+        header: "KYC",
         filterFn: (row, id, value) => {
             const kycVerified = row.getValue(id) as boolean
             if (value === undefined || value === null) return true
@@ -269,27 +337,65 @@ const columns: ColumnDef<Merchant>[] = [
         },
         cell: ({ row }) => {
             const kycVerified = row.original.kyc_verified
+            const kycStatus = row.original.kyc_status
+
+            // Determine display based on kyc_status if available
+            const getKycConfig = () => {
+                if (kycStatus) {
+                    switch (kycStatus.toUpperCase()) {
+                        case 'APPROVED':
+                        case 'VERIFIED':
+                            return {
+                                variant: 'default' as const,
+                                icon: <IconShieldCheck className="mr-1 size-3" />,
+                                label: 'Approved',
+                            }
+                        case 'IN_REVIEW':
+                        case 'PENDING':
+                            return {
+                                variant: 'outline' as const,
+                                icon: <IconLoader className="mr-1 size-3" />,
+                                label: 'In Review',
+                            }
+                        case 'REJECTED':
+                            return {
+                                variant: 'destructive' as const,
+                                icon: <IconShieldX className="mr-1 size-3" />,
+                                label: 'Rejected',
+                            }
+                        default:
+                            break;
+                    }
+                }
+
+                // Fallback to kycVerified boolean
+                if (kycVerified) {
+                    return {
+                        variant: 'default' as const,
+                        icon: <IconShieldCheck className="mr-1 size-3" />,
+                        label: 'Verified',
+                    }
+                }
+                return {
+                    variant: 'secondary' as const,
+                    icon: <IconShieldX className="mr-1 size-3" />,
+                    label: 'Pending',
+                }
+            }
+
+            const config = getKycConfig()
 
             return (
                 <Badge
-                    variant={kycVerified ? "default" : "secondary"}
+                    variant={config.variant}
                     className="px-2 py-0.5 whitespace-nowrap"
                 >
-                    {kycVerified ? (
-                        <>
-                            <IconShieldCheck className="mr-1 size-3" />
-                            Verified
-                        </>
-                    ) : (
-                        <>
-                            <IconShieldX className="mr-1 size-3" />
-                            Not Verified
-                        </>
-                    )}
+                    {config.icon}
+                    {config.label}
                 </Badge>
             )
         },
-        size: 140,
+        size: 120,
     },
     {
         accessorKey: "created_at",
@@ -304,40 +410,216 @@ const columns: ColumnDef<Merchant>[] = [
             return dateA - dateB
         },
         cell: ({ row }) => (
-            <div className="text-sm whitespace-nowrap">{formatDate(row.original.created_at)}</div>
+            <div className="text-sm whitespace-nowrap">{formatDate(row.original.created_at ?? null)}</div>
         ),
         size: 160,
     },
     {
         id: "actions",
-        cell: () => (
+        cell: ({ row }) => <ActionCell merchant={row.original} />,
+    },
+]
+
+// ActionCell component for merchant actions
+interface ActionCellProps {
+    merchant: Merchant
+}
+
+function ActionCell({ merchant }: ActionCellProps) {
+    const [showStatusDialog, setShowStatusDialog] = React.useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+    const [showBankAccountsDrawer, setShowBankAccountsDrawer] = React.useState(false)
+    const [selectedStatus, setSelectedStatus] = React.useState<'ACTIVE' | 'SUSPENDED' | 'INACTIVE'>('ACTIVE')
+    const [statusReason, setStatusReason] = React.useState('')
+
+    const deleteMutation = useDeleteMerchant()
+    const updateStatusMutation = useUpdateMerchantStatus()
+
+    const isPending = deleteMutation.isPending || updateStatusMutation.isPending
+
+    const handleDelete = () => {
+        if (!merchant.uid) {
+            toast.error("Merchant UID is missing, cannot delete.")
+            return
+        }
+        deleteMutation.mutate(merchant.uid, {
+            onSuccess: () => {
+                setShowDeleteDialog(false)
+            }
+        })
+    }
+
+    const handleStatusChange = () => {
+        if (!merchant.uid) {
+            toast.error("Merchant UID is missing, cannot update status.")
+            return
+        }
+        updateStatusMutation.mutate(
+            { uid: merchant.uid, status: selectedStatus, reason: statusReason },
+            {
+                onSuccess: () => {
+                    setShowStatusDialog(false)
+                    setStatusReason('')
+                }
+            }
+        )
+    }
+
+    const openStatusDialog = (status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE') => {
+        setSelectedStatus(status)
+        setShowStatusDialog(true)
+    }
+
+    // Determine current status for conditional rendering
+    const currentStatus = merchant.status?.toUpperCase() || 'ACTIVE'
+
+    return (
+        <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
                         className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
                         size="icon"
+                        disabled={isPending}
                     >
-                        <IconDotsVertical />
+                        {isPending ? <IconLoader className="size-4 animate-spin" /> : <IconDotsVertical />}
                         <span className="sr-only">Open menu</span>
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem>View Details</DropdownMenuItem>
                     <DropdownMenuItem>Edit</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Activate</DropdownMenuItem>
-                    <DropdownMenuItem>Deactivate</DropdownMenuItem>
+                    {/* Status Actions */}
+                    {currentStatus !== 'ACTIVE' && (
+                        <DropdownMenuItem onClick={() => openStatusDialog('ACTIVE')}>
+                            Set Active
+                        </DropdownMenuItem>
+                    )}
+                    {currentStatus !== 'SUSPENDED' && (
+                        <DropdownMenuItem onClick={() => openStatusDialog('SUSPENDED')}>
+                            Suspend
+                        </DropdownMenuItem>
+                    )}
+                    {currentStatus !== 'INACTIVE' && (
+                        <DropdownMenuItem onClick={() => openStatusDialog('INACTIVE')}>
+                            Set Inactive
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem>Verify KYC</DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem>Manage API Keys</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowBankAccountsDrawer(true)}>
+                        View Bank Accounts
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                        disabled={isPending}
+                    >
+                        <IconTrash className="mr-2 size-4" />
+                        Delete
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-        ),
-    },
-]
+
+            {/* Status Change Dialog */}
+            <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Change Merchant Status</DialogTitle>
+                        <DialogDescription>
+                            You are about to change the status of <strong>{merchant.name}</strong> to <strong>{selectedStatus}</strong>.
+                            Please provide a reason for this change.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="reason">Reason</Label>
+                            <Textarea
+                                id="reason"
+                                placeholder="Enter reason for status change..."
+                                value={statusReason}
+                                onChange={(e) => setStatusReason(e.target.value)}
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowStatusDialog(false)}
+                            disabled={updateStatusMutation.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleStatusChange}
+                            disabled={updateStatusMutation.isPending}
+                        >
+                            {updateStatusMutation.isPending ? (
+                                <>
+                                    <IconLoader className="mr-2 size-4 animate-spin" />
+                                    Updating...
+                                </>
+                            ) : (
+                                'Confirm'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Merchant</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete <strong>{merchant.name}</strong>?
+                            This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={deleteMutation.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={deleteMutation.isPending}
+                        >
+                            {deleteMutation.isPending ? (
+                                <>
+                                    <IconLoader className="mr-2 size-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bank Accounts Drawer */}
+            {merchant.uid && (
+                <BankAccountsDrawer
+                    open={showBankAccountsDrawer}
+                    onOpenChange={setShowBankAccountsDrawer}
+                    merchantUid={merchant.uid}
+                    merchantName={merchant.name}
+                />
+            )}
+        </>
+    )
+}
 
 
 interface PaginationMeta {
@@ -414,7 +696,7 @@ export function MerchantsTable({
 
     // Get unique values for filters
     const statusColumn = table.getColumn("status")
-    const typeColumn = table.getColumn("type")
+    const typeColumn = table.getColumn("merchant_type")
     const kycColumn = table.getColumn("kyc_verified")
 
     // Get filter values for badge display
@@ -426,7 +708,7 @@ export function MerchantsTable({
     const uniqueTypes = React.useMemo(() => {
         const types = new Set<string>()
         data.forEach(merchant => {
-            if (merchant.type) types.add(merchant.type)
+            if (merchant.merchant_type) types.add(merchant.merchant_type)
         })
         return Array.from(types).sort()
     }, [data])
@@ -458,14 +740,14 @@ export function MerchantsTable({
                         </DropdownMenuCheckboxItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuCheckboxItem
-                            checked={statusFilter?.includes('active') ?? false}
+                            checked={statusFilter?.includes('ACTIVE') ?? false}
                             onCheckedChange={(checked) => {
                                 const currentFilter = statusFilter || []
                                 if (checked) {
-                                    statusColumn?.setFilterValue([...currentFilter, 'active'])
+                                    statusColumn?.setFilterValue([...currentFilter, 'ACTIVE'])
                                 } else {
                                     statusColumn?.setFilterValue(
-                                        currentFilter.filter((v) => v !== 'active')
+                                        currentFilter.filter((v) => v !== 'ACTIVE')
                                     )
                                 }
                             }}
@@ -473,14 +755,29 @@ export function MerchantsTable({
                             Active
                         </DropdownMenuCheckboxItem>
                         <DropdownMenuCheckboxItem
-                            checked={statusFilter?.includes('inactive') ?? false}
+                            checked={statusFilter?.includes('SUSPENDED') ?? false}
                             onCheckedChange={(checked) => {
                                 const currentFilter = statusFilter || []
                                 if (checked) {
-                                    statusColumn?.setFilterValue([...currentFilter, 'inactive'])
+                                    statusColumn?.setFilterValue([...currentFilter, 'SUSPENDED'])
                                 } else {
                                     statusColumn?.setFilterValue(
-                                        currentFilter.filter((v) => v !== 'inactive')
+                                        currentFilter.filter((v) => v !== 'SUSPENDED')
+                                    )
+                                }
+                            }}
+                        >
+                            Suspended
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={statusFilter?.includes('INACTIVE') ?? false}
+                            onCheckedChange={(checked) => {
+                                const currentFilter = statusFilter || []
+                                if (checked) {
+                                    statusColumn?.setFilterValue([...currentFilter, 'INACTIVE'])
+                                } else {
+                                    statusColumn?.setFilterValue(
+                                        currentFilter.filter((v) => v !== 'INACTIVE')
                                     )
                                 }
                             }}
@@ -807,28 +1104,22 @@ function TableCellViewer({ item, displayText }: { item: Merchant; displayText?: 
                                 <span className="text-muted-foreground">Name:</span>
                                 <span>{item.name}</span>
                             </div>
-                            {item.type && (
+                            {item.merchant_type && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Type:</span>
-                                    <Badge variant="outline">{item.type}</Badge>
+                                    <Badge variant="outline">{item.merchant_type}</Badge>
                                 </div>
                             )}
-                            {item.email && (
+                            {item.contact_email && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Email:</span>
-                                    <span>{item.email}</span>
+                                    <span>{item.contact_email}</span>
                                 </div>
                             )}
-                            {item.contact_info && (
+                            {item.contact_phone && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Contact Info:</span>
-                                    <span>{item.contact_info}</span>
-                                </div>
-                            )}
-                            {item.description && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Description:</span>
-                                    <span>{item.description}</span>
+                                    <span>{item.contact_phone}</span>
                                 </div>
                             )}
                         </div>

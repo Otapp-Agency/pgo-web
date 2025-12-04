@@ -1,5 +1,7 @@
-import { MerchantSchema, PaginatedMerchantResponse } from '@/lib/definitions';
+import { MerchantSchema, PaginatedMerchantResponse, BankAccountSchema, BankAccount, MerchantStatusUpdateRequest, CreateMerchantRequest, CreateBankAccountRequest } from '@/lib/definitions';
 import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 /**
  * Query keys factory for merchants
@@ -19,7 +21,7 @@ export interface MerchantListParams {
     per_page?: number;
     search?: string;
     status?: string;
-    type?: string;
+    merchantType?: string;
     kyc_verified?: boolean;
     sort?: string[];
 }
@@ -38,7 +40,7 @@ export function normalizeMerchantParams(params: MerchantListParams): MerchantLis
     // Add other params only if they have values
     if (params.search) normalized.search = params.search;
     if (params.status) normalized.status = params.status;
-    if (params.type) normalized.type = params.type;
+    if (params.merchantType) normalized.merchantType = params.merchantType;
     if (params.kyc_verified !== undefined) normalized.kyc_verified = params.kyc_verified;
     if (params.sort && params.sort.length > 0) normalized.sort = params.sort;
 
@@ -197,5 +199,270 @@ export function merchantDetailQueryOptions(merchantId: string) {
         },
         staleTime: 60 * 1000, // 60 seconds
     };
+}
+
+/**
+ * Hook to delete a merchant
+ */
+export function useDeleteMerchant() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (uid: string) => {
+            const url = `/api/merchants/${uid}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useDeleteMerchant should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to delete merchant'
+                );
+            }
+
+            const responseData = await response.json();
+            return responseData;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantsKeys.lists() });
+            toast.success(data.message || 'Merchant deleted successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to delete merchant');
+        },
+    });
+}
+
+/**
+ * Hook to update a merchant's status
+ */
+export function useUpdateMerchantStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ uid, status, reason }: { uid: string } & MerchantStatusUpdateRequest) => {
+            const url = `/api/merchants/${uid}/status`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useUpdateMerchantStatus should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status, reason }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to update merchant status'
+                );
+            }
+
+            const responseData = await response.json();
+            return responseData;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantsKeys.lists() });
+            toast.success(data.message || 'Merchant status updated successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to update merchant status');
+        },
+    });
+}
+
+/**
+ * Query keys for bank accounts
+ */
+export const bankAccountsKeys = {
+    all: ['bank-accounts'] as const,
+    list: (merchantUid: string) => [...bankAccountsKeys.all, 'list', merchantUid] as const,
+};
+
+/**
+ * Hook to fetch merchant bank accounts
+ */
+export function useMerchantBankAccounts(merchantUid: string) {
+    const url = `/api/merchants/${merchantUid}/bank-accounts`;
+
+    return useQuery({
+        queryKey: bankAccountsKeys.list(merchantUid),
+        queryFn: async (): Promise<BankAccount[]> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useMerchantBankAccounts should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch bank accounts'
+                );
+            }
+
+            const responseData = await response.json();
+            const bankAccounts = responseData.data || [];
+            return z.array(BankAccountSchema).parse(bankAccounts);
+        },
+        staleTime: 60 * 1000, // 60 seconds
+        enabled: !!merchantUid,
+    });
+}
+
+/**
+ * Hook to create or update a merchant bank account
+ */
+export function useCreateUpdateBankAccount() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ merchantUid, bankAccount }: { merchantUid: string; bankAccount: CreateBankAccountRequest }) => {
+            const url = `/api/merchants/${merchantUid}/bank-accounts`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useCreateUpdateBankAccount should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bankAccount),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to save bank account'
+                );
+            }
+
+            const responseData = await response.json();
+            return { ...responseData, merchantUid };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: bankAccountsKeys.list(data.merchantUid) });
+            toast.success(data.message || 'Bank account saved successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to save bank account');
+        },
+    });
+}
+
+/**
+ * Hook to deactivate a merchant bank account
+ */
+export function useDeactivateBankAccount() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ merchantUid, bankAccountUid }: { merchantUid: string; bankAccountUid: string }) => {
+            const url = `/api/merchants/${merchantUid}/bank-accounts/${bankAccountUid}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useDeactivateBankAccount should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to deactivate bank account'
+                );
+            }
+
+            const responseData = await response.json();
+            return { ...responseData, merchantUid };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: bankAccountsKeys.list(data.merchantUid) });
+            toast.success(data.message || 'Bank account deactivated successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to deactivate bank account');
+        },
+    });
+}
+
+/**
+ * Hook to create a new merchant
+ */
+export function useCreateMerchant() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (merchantData: CreateMerchantRequest) => {
+            const url = `/api/merchants`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useCreateMerchant should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(merchantData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to create merchant'
+                );
+            }
+
+            const responseData = await response.json();
+            return responseData;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantsKeys.lists() });
+            toast.success(data.message || 'Merchant created successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to create merchant');
+        },
+    });
 }
 

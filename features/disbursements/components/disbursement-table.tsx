@@ -12,28 +12,35 @@ import {
     IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
+    IconDownload,
     IconLayoutColumns,
     IconLoader,
 } from "@tabler/icons-react"
 import {
     ColumnDef,
-    ColumnFiltersState,
     flexRender,
     getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getSortedRowModel,
     Header,
-    SortingState,
     useReactTable,
     VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Disbursement, DisbursementSchema } from "@/lib/definitions"
 import { useDisbursementsTableStore } from "@/lib/stores/disbursements-table-store"
+import { DisbursementFilters } from "@/features/disbursements/components/disbursement-filters"
+import { exportDisbursements, ExportFormat } from "@/features/disbursements/queries/export"
+import {
+    disbursementsKeys,
+    retryDisbursement,
+} from "@/features/disbursements/queries/disbursements"
+import {
+    CompleteDisbursementDialog,
+    CancelDisbursementDialog,
+} from "@/features/disbursements/components/disbursement-action-dialogs"
 
 // Re-export schema for build compatibility
 export const schema = DisbursementSchema
@@ -145,6 +152,312 @@ function SortableHeader({
     )
 }
 
+// Status-based action visibility helpers
+const RETRY_STATUSES = ['FAILED', 'TIMEOUT', 'ERROR', 'RETRY_ATTEMPTED']
+const COMPLETE_STATUSES = ['PENDING', 'PROCESSING']
+const CANCEL_STATUSES = ['PENDING', 'PROCESSING']
+
+function canRetry(status: string): boolean {
+    return RETRY_STATUSES.includes(status.toUpperCase())
+}
+
+function canComplete(status: string): boolean {
+    return COMPLETE_STATUSES.includes(status.toUpperCase())
+}
+
+function canCancel(status: string): boolean {
+    return CANCEL_STATUSES.includes(status.toUpperCase())
+}
+
+// Actions cell component
+function ActionsCell({ disbursement }: { disbursement: Disbursement }) {
+    // Use numeric id for API calls
+    const disbursementId = disbursement.id
+    // Use uid or merchantTransactionId for display purposes
+    const disbursementRef = disbursement.merchantTransactionId || disbursement.internalTransactionId || disbursement.uid
+    const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+    const isMobile = useIsMobile()
+    const queryClient = useQueryClient()
+
+    const handleViewDetails = () => {
+        setIsDetailsOpen(true)
+    }
+
+    // Retry mutation
+    const retryMutation = useMutation({
+        mutationFn: () => retryDisbursement(disbursementId),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: disbursementsKeys.detail(disbursementId) })
+            toast.success(data.message || 'Disbursement retry initiated successfully')
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to retry disbursement')
+        },
+    })
+
+    const handleRetry = () => {
+        retryMutation.mutate()
+    }
+
+    // Determine which actions are available based on status
+    const status = disbursement.status?.toUpperCase() || ''
+    const showRetry = canRetry(status)
+    const showComplete = canComplete(status)
+    const showCancel = canCancel(status)
+    const hasActions = showRetry || showComplete || showCancel
+
+    return (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        size="icon"
+                    >
+                        <IconDotsVertical />
+                        <span className="sr-only">Open menu</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={handleViewDetails}>
+                        View Details
+                    </DropdownMenuItem>
+
+                    {hasActions && <DropdownMenuSeparator />}
+
+                    {showRetry && (
+                        <DropdownMenuItem
+                            onClick={handleRetry}
+                            disabled={retryMutation.isPending}
+                        >
+                            {retryMutation.isPending ? (
+                                <IconLoader className="mr-2 size-4 animate-spin" />
+                            ) : null}
+                            Retry
+                        </DropdownMenuItem>
+                    )}
+
+                    {showComplete && (
+                        <CompleteDisbursementDialog
+                            disbursementId={disbursementId}
+                            disbursementRef={disbursementRef}
+                            amount={disbursement.amount}
+                            currency={disbursement.currency}
+                            trigger={
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    Complete
+                                </DropdownMenuItem>
+                            }
+                        />
+                    )}
+
+                    {showCancel && (showRetry || showComplete) && (
+                        <DropdownMenuSeparator />
+                    )}
+
+                    {showCancel && (
+                        <CancelDisbursementDialog
+                            disbursementId={disbursementId}
+                            disbursementRef={disbursementRef}
+                            amount={disbursement.amount}
+                            currency={disbursement.currency}
+                            trigger={
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={(e) => e.preventDefault()}
+                                >
+                                    Cancel
+                                </DropdownMenuItem>
+                            }
+                        />
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <Drawer open={isDetailsOpen} onOpenChange={setIsDetailsOpen} direction={isMobile ? "bottom" : "right"}>
+                <DrawerContent>
+                    <DrawerHeader className="gap-1">
+                        <DrawerTitle>Disbursement Details</DrawerTitle>
+                        <DrawerDescription>
+                            Disbursement ID: {disbursement.uid}
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+                        {/* Disbursement IDs Section */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Disbursement IDs</Label>
+                            <div className="grid gap-2 rounded-lg border p-3">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Internal:</span>
+                                    <span className="font-mono text-xs">{disbursement.internalTransactionId}</span>
+                                </div>
+                                {disbursement.externalTransactionId && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">External:</span>
+                                        <span className="font-mono text-xs">{disbursement.externalTransactionId}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Merchant:</span>
+                                    <span className="font-mono text-xs">{disbursement.merchantTransactionId}</span>
+                                </div>
+                                {disbursement.pspTransactionId && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">PSP:</span>
+                                        <span className="font-mono text-xs">{disbursement.pspTransactionId}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Amount and Currency */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Amount</Label>
+                            <div className="text-2xl font-bold">
+                                {formatAmount(disbursement.amount, disbursement.currency)}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Customer Information */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Customer Information</Label>
+                            <div className="grid gap-2 rounded-lg border p-3">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Name:</span>
+                                    <span>{disbursement.customerName || "-"}</span>
+                                </div>
+                                {disbursement.customerIdentifier && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Identifier:</span>
+                                        <span>{disbursement.customerIdentifier}</span>
+                                    </div>
+                                )}
+                                {disbursement.paymentMethod && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Payment Method:</span>
+                                        <span>{disbursement.paymentMethod}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Status */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Status</Label>
+                            <Badge
+                                variant="outline"
+                                className="w-fit px-3 py-1"
+                                style={{
+                                    backgroundColor: `${disbursement.colorCode}20`,
+                                    borderColor: disbursement.colorCode,
+                                    color: disbursement.colorCode,
+                                }}
+                            >
+                                {disbursement.status === "SUCCESS" || disbursement.status === "COMPLETED" ? (
+                                    <IconCircleCheckFilled className="mr-2 size-4" />
+                                ) : disbursement.status === "FAILED" ? (
+                                    <span className="mr-2">✕</span>
+                                ) : (
+                                    <IconLoader className="mr-2 size-4" />
+                                )}
+                                {disbursement.status}
+                            </Badge>
+                        </div>
+
+                        <Separator />
+
+                        {/* Merchant Information */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Merchant Information</Label>
+                            <div className="grid gap-2 rounded-lg border p-3">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Merchant:</span>
+                                    <span>{disbursement.merchantName}</span>
+                                </div>
+                                {disbursement.submerchantName && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Submerchant:</span>
+                                        <span>{disbursement.submerchantName}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* PGO Information */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Payment Gateway</Label>
+                            <div className="rounded-lg border p-3">
+                                <div className="font-medium">{disbursement.pgoName}</div>
+                            </div>
+                        </div>
+
+                        {/* Error Information */}
+                        {(disbursement.status === "FAILED" || disbursement.errorCode || disbursement.errorMessage || disbursement.description) && (
+                            <>
+                                <Separator />
+                                <div className="flex flex-col gap-3">
+                                    <Label className="text-base font-semibold text-destructive">Error Information</Label>
+                                    <div className="grid gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                                        {disbursement.errorCode && (
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Error Code:</span>
+                                                <span className="font-medium text-destructive">{disbursement.errorCode}</span>
+                                            </div>
+                                        )}
+                                        {disbursement.errorMessage && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-muted-foreground">Error Message:</span>
+                                                <span className="text-destructive">{disbursement.errorMessage}</span>
+                                            </div>
+                                        )}
+                                        {disbursement.description && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-muted-foreground">Description:</span>
+                                                <span>{disbursement.description}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <Separator />
+
+                        {/* Timestamps */}
+                        <div className="flex flex-col gap-3">
+                            <Label className="text-base font-semibold">Timestamps</Label>
+                            <div className="grid gap-2 rounded-lg border p-3">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Created:</span>
+                                    <span>{formatDate(disbursement.createdAt)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Updated:</span>
+                                    <span>{formatDate(disbursement.updatedAt)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <DrawerFooter>
+                        <DrawerClose asChild>
+                            <Button variant="outline">Close</Button>
+                        </DrawerClose>
+                    </DrawerFooter>
+                </DrawerContent>
+            </Drawer>
+        </>
+    )
+}
+
 const columns: ColumnDef<Disbursement>[] = [
     {
         id: "select",
@@ -250,9 +563,6 @@ const columns: ColumnDef<Disbursement>[] = [
                 Status
             </SortableHeader>
         ),
-        filterFn: (row, id, value) => {
-            return value.includes(row.getValue(id))
-        },
         cell: ({ row }) => (
             <Badge
                 variant="outline"
@@ -301,9 +611,6 @@ const columns: ColumnDef<Disbursement>[] = [
                 PGO
             </SortableHeader>
         ),
-        filterFn: (row, id, value) => {
-            return value.includes(row.getValue(id))
-        },
         cell: ({ row }) => (
             <div className="max-w-[120px] min-w-[100px] truncate">{row.original.pgoName || "-"}</div>
         ),
@@ -328,26 +635,7 @@ const columns: ColumnDef<Disbursement>[] = [
     },
     {
         id: "actions",
-        cell: () => (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                        size="icon"
-                    >
-                        <IconDotsVertical />
-                        <span className="sr-only">Open menu</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                    <DropdownMenuItem>Retry</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">Cancel</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        ),
+        cell: ({ row }) => <ActionsCell disbursement={row.original} />,
     },
 ]
 
@@ -370,15 +658,16 @@ export function DisbursementTable({
     paginationMeta: PaginationMeta;
     isLoading?: boolean;
 }) {
+    // Get state from Zustand store
     const {
-        pagination: paginationState,
+        pagination,
         sorting,
-        columnFilters,
         columnVisibility,
         rowSelection,
-        setPagination,
+        filters,
+        setPageIndex,
+        setPageSize,
         setSorting,
-        setColumnFilters,
         setColumnVisibility,
         setRowSelection,
     } = useDisbursementsTableStore()
@@ -390,175 +679,116 @@ export function DisbursementTable({
             sorting,
             columnVisibility,
             rowSelection,
-            columnFilters,
-            pagination: paginationState,
         },
         getRowId: (row) => row.uid,
         enableRowSelection: true,
         onRowSelectionChange: setRowSelection,
         onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: (updater) => {
-            const newPagination = typeof updater === 'function'
-                ? updater(paginationState)
-                : updater;
-            setPagination(newPagination);
-        },
-        // Server-side pagination configuration
-        manualPagination: true,
-        pageCount: paginationMeta.totalPages,
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        // Remove getPaginationRowModel - we're using server-side pagination
-        getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
+        // Server-side pagination - don't use client-side models
+        manualPagination: true,
+        manualSorting: true,
+        manualFiltering: true,
+        pageCount: paginationMeta.totalPages,
     })
 
+    // Export handler using store filters
+    const handleExport = React.useCallback(async (format: ExportFormat) => {
+        try {
+            // Build export params from store filters
+            const exportParams: Parameters<typeof exportDisbursements>[0] = {
+                format,
+            }
 
-    // Get unique values for filters (from current page data)
-    const statusColumn = table.getColumn("status")
-    const pgoColumn = table.getColumn("pgoName")
+            // Add filters from store
+            if (filters.status) {
+                exportParams.status = filters.status
+            }
+            if (filters.startDate) {
+                exportParams.start_date = filters.startDate
+            }
+            if (filters.endDate) {
+                exportParams.end_date = filters.endDate
+            }
+            if (filters.amountMin) {
+                exportParams.amount_min = filters.amountMin
+            }
+            if (filters.amountMax) {
+                exportParams.amount_max = filters.amountMax
+            }
+            if (filters.search) {
+                exportParams.search = filters.search
+            }
 
-    const statusValues = React.useMemo(() => {
-        const uniqueStatuses = new Set(data.map((d) => d.status))
-        return Array.from(uniqueStatuses).sort()
-    }, [data])
-
-    const pgoValues = React.useMemo(() => {
-        const uniquePgos = new Set(data.map((d) => d.pgoName).filter(Boolean))
-        return Array.from(uniquePgos).sort()
-    }, [data])
-
-    const statusFilter = statusColumn?.getFilterValue() as string[] | undefined
-    const pgoFilter = pgoColumn?.getFilterValue() as string[] | undefined
+            await exportDisbursements(exportParams)
+            toast.success(`Exporting disbursements as ${format.toUpperCase()}...`)
+        } catch (error) {
+            console.error('Export error:', error)
+            toast.error(error instanceof Error ? error.message : 'Failed to export disbursements')
+        }
+    }, [filters])
 
     return (
         <div className="w-full flex flex-col gap-6">
-            <div className="flex items-center justify-end gap-2 px-4 lg:px-6 shrink-0">
-                {/* Status Filter */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            Status
-                            {statusFilter && statusFilter.length > 0 && (
-                                <Badge variant="secondary" className="ml-2">
-                                    {statusFilter.length}
-                                </Badge>
-                            )}
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuCheckboxItem
-                            checked={!statusFilter || statusFilter.length === 0}
-                            onCheckedChange={() => {
-                                statusColumn?.setFilterValue(undefined)
-                            }}
-                        >
-                            All Statuses
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSeparator />
-                        {statusValues.map((status) => (
-                            <DropdownMenuCheckboxItem
-                                key={status}
-                                checked={statusFilter?.includes(status) ?? false}
-                                onCheckedChange={(checked) => {
-                                    const currentFilter = statusFilter || []
-                                    if (checked) {
-                                        statusColumn?.setFilterValue([...currentFilter, status])
-                                    } else {
-                                        statusColumn?.setFilterValue(
-                                            currentFilter.filter((v) => v !== status)
-                                        )
-                                    }
-                                }}
-                            >
-                                {status}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="flex flex-wrap items-center justify-between gap-4 px-4 lg:px-6 shrink-0">
+                {/* Server-side Filters */}
+                <DisbursementFilters />
 
-                {/* PGO Filter */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            PGO
-                            {pgoFilter && pgoFilter.length > 0 && (
-                                <Badge variant="secondary" className="ml-2">
-                                    {pgoFilter.length}
-                                </Badge>
-                            )}
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuCheckboxItem
-                            checked={!pgoFilter || pgoFilter.length === 0}
-                            onCheckedChange={() => {
-                                pgoColumn?.setFilterValue(undefined)
-                            }}
-                        >
-                            All PGOs
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSeparator />
-                        {pgoValues.map((pgo) => (
-                            <DropdownMenuCheckboxItem
-                                key={pgo}
-                                checked={pgoFilter?.includes(pgo) ?? false}
-                                onCheckedChange={(checked) => {
-                                    const currentFilter = pgoFilter || []
-                                    if (checked) {
-                                        pgoColumn?.setFilterValue([...currentFilter, pgo])
-                                    } else {
-                                        pgoColumn?.setFilterValue(
-                                            currentFilter.filter((v) => v !== pgo)
-                                        )
-                                    }
-                                }}
-                            >
-                                {pgo}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Customize Columns */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <IconLayoutColumns />
-                            <span className="hidden lg:inline">Customize Columns</span>
-                            <span className="lg:hidden">Columns</span>
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        {table
-                            .getAllColumns()
-                            .filter(
-                                (column) =>
-                                    typeof column.accessorFn !== "undefined" &&
-                                    column.getCanHide()
-                            )
-                            .map((column) => {
-                                return (
-                                    <DropdownMenuCheckboxItem
-                                        key={column.id}
-                                        className="capitalize"
-                                        checked={column.getIsVisible()}
-                                        onCheckedChange={(value) =>
-                                            column.toggleVisibility(!!value)
-                                        }
-                                    >
-                                        {column.id}
-                                    </DropdownMenuCheckboxItem>
+                <div className="flex items-center gap-2">
+                    {/* Customize Columns */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <IconLayoutColumns />
+                                <span className="hidden lg:inline">Customize Columns</span>
+                                <span className="lg:hidden">Columns</span>
+                                <IconChevronDown />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            {table
+                                .getAllColumns()
+                                .filter(
+                                    (column) =>
+                                        column.getCanHide()
                                 )
-                            })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                                .map((column) => {
+                                    return (
+                                        <DropdownMenuCheckboxItem
+                                            key={column.id}
+                                            className="capitalize"
+                                            checked={column.getIsVisible()}
+                                            onCheckedChange={(value) =>
+                                                column.toggleVisibility(!!value)
+                                            }
+                                        >
+                                            {column.id}
+                                        </DropdownMenuCheckboxItem>
+                                    )
+                                })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Export */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <IconDownload />
+                                <span className="hidden lg:inline">Export</span>
+                                <IconChevronDown />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleExport('csv')}>
+                                Export as CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExport('excel')}>
+                                Export as Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
             <div className="relative flex flex-col gap-4 px-4 lg:px-6 min-w-0">
                 <div className="w-full overflow-x-auto rounded-lg border">
@@ -612,30 +842,25 @@ export function DisbursementTable({
                         </Table>
                     </div>
                 </div>
-                <div className="flex items-center justify-between px-4 shrink-0">
+                <div className="flex items-center justify-between px-4 flex-shrink-0">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
-                        {table.getFilteredSelectedRowModel().rows.length} of{" "}
+                        {Object.keys(rowSelection).length} of{" "}
                         {paginationMeta.totalElements} row(s) selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit shrink-0">
+                    <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label htmlFor="rows-per-page" className="text-sm font-medium">
                                 Rows per page
                             </Label>
                             <Select
-                                value={`${table.getState().pagination.pageSize}`}
+                                value={`${pagination.pageSize}`}
                                 onValueChange={(value) => {
-                                    const newPageSize = Number(value);
-                                    // Reset to first page when changing page size
-                                    setPagination({
-                                        pageIndex: 0,
-                                        pageSize: newPageSize,
-                                    });
+                                    setPageSize(Number(value))
                                 }}
                             >
                                 <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                                     <SelectValue
-                                        placeholder={table.getState().pagination.pageSize}
+                                        placeholder={pagination.pageSize}
                                     />
                                 </SelectTrigger>
                                 <SelectContent side="top">
@@ -648,16 +873,15 @@ export function DisbursementTable({
                             </Select>
                         </div>
                         <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{" "}
+                            Page {pagination.pageIndex + 1} of{" "}
                             {paginationMeta.totalPages || 1}
-                            {isLoading && <IconLoader className="ml-2 size-4 animate-spin" />}
                         </div>
                         <div className="ml-auto flex items-center gap-2 lg:ml-0">
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setPagination({ ...paginationState, pageIndex: 0 })}
-                                disabled={paginationMeta.first || isLoading}
+                                onClick={() => setPageIndex(0)}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to first page</span>
                                 <IconChevronsLeft />
@@ -666,8 +890,8 @@ export function DisbursementTable({
                                 variant="outline"
                                 className="size-8"
                                 size="icon"
-                                onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex - 1 })}
-                                disabled={paginationMeta.first || isLoading}
+                                onClick={() => setPageIndex(pagination.pageIndex - 1)}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to previous page</span>
                                 <IconChevronLeft />
@@ -676,8 +900,8 @@ export function DisbursementTable({
                                 variant="outline"
                                 className="size-8"
                                 size="icon"
-                                onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex + 1 })}
-                                disabled={paginationMeta.last || isLoading}
+                                onClick={() => setPageIndex(pagination.pageIndex + 1)}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to next page</span>
                                 <IconChevronRight />
@@ -686,8 +910,8 @@ export function DisbursementTable({
                                 variant="outline"
                                 className="hidden size-8 lg:flex"
                                 size="icon"
-                                onClick={() => setPagination({ ...paginationState, pageIndex: (paginationMeta.totalPages || 1) - 1 })}
-                                disabled={paginationMeta.last || isLoading}
+                                onClick={() => setPageIndex(paginationMeta.totalPages - 1)}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to last page</span>
                                 <IconChevronsRight />
@@ -892,4 +1116,3 @@ function TableCellViewer({ item, displayText }: { item: Disbursement; displayTex
         </Drawer>
     )
 }
-
