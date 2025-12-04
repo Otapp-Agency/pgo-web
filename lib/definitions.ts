@@ -65,27 +65,33 @@ export type Transaction = z.infer<typeof TransactionSchema>
 export const DisbursementSchema = z.object({
   id: z.string(),
   uid: z.string(),
-  internalTransactionId: z.string().optional().default(''),
-  externalTransactionId: z.string().optional().default(''),
-  merchantTransactionId: z.string().optional().default(''),
-  pspTransactionId: z.string().optional().default(''),
+  // API-returned disbursement IDs
+  pspDisbursementId: z.string().optional().default(''),
+  merchantDisbursementId: z.string().optional().default(''),
+  sourceTransactionId: z.string().optional().default(''),
+  // Amount and currency
   amount: z.string(),
   currency: z.string(),
-  customerIdentifier: z.string().optional().default(''),
-  paymentMethod: z.string().optional().default(''),
-  customerName: z.string().optional().default(''),
+  // Channel and recipient info
+  disbursementChannel: z.string().optional().default(''),
+  recipientAccount: z.string().optional().default(''),
+  recipientName: z.string().optional().default(''),
+  // Status
   status: z.string(),
   colorCode: z.string(),
+  // Description
+  description: z.string().optional().default(''),
+  // Response codes and messages
+  responseCode: z.string().optional().default(''),
+  responseMessage: z.string().optional().default(''),
   errorCode: z.string().optional().default(''),
   errorMessage: z.string().optional().default(''),
-  description: z.string().optional().default(''),
+  // Gateway info
   pgoId: z.string(),
   pgoName: z.string(),
+  // Merchant info
   merchantId: z.string(),
-  merchantName: z.string().optional().default(''),
-  submerchantId: z.string().optional().default(''),
-  submerchantUid: z.string().optional().default(''),
-  submerchantName: z.string().optional().default(''),
+  // Timestamps
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -400,3 +406,123 @@ export interface PaginatedMerchantLookupResponse {
     last: boolean;
   };
 }
+
+// Processing History Entry Schema
+export const ProcessingHistoryEntrySchema = z.object({
+  id: z.number().optional(),
+  status: z.string(),
+  message: z.string().optional().nullable(),
+  errorCode: z.string().optional().nullable(),
+  errorMessage: z.string().optional().nullable(),
+  timestamp: z.string(),
+  retryCount: z.number().optional().nullable(),
+  attemptNumber: z.number().optional().nullable(),
+  processingTime: z.number().optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+});
+
+export type ProcessingHistoryEntry = z.infer<typeof ProcessingHistoryEntrySchema>;
+
+// Audit Trail Entry Schema
+export const AuditTrailEntrySchema = z.object({
+  id: z.number().optional(),
+  action: z.string(),
+  performedBy: z.string().optional().nullable(),
+  performedByUid: z.string().optional().nullable(),
+  timestamp: z.string(),
+  oldValue: z.string().optional().nullable(),
+  newValue: z.string().optional().nullable(),
+  field: z.string().optional().nullable(),
+  reason: z.string().optional().nullable(),
+  ipAddress: z.string().optional().nullable(),
+  userAgent: z.string().optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+});
+
+export type AuditTrailEntry = z.infer<typeof AuditTrailEntrySchema>;
+
+// Can Update Response Schema
+export const CanUpdateResponseSchema = z.object({
+  canUpdate: z.boolean(),
+  reason: z.string().optional().nullable(),
+  allowedActions: z.array(z.string()).optional().nullable(),
+});
+
+// Disbursement Statistics Item Schema
+export const DisbursementStatsItemSchema = z.object({
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  periodType: z.string().optional(),
+  periodLabel: z.string().optional(),
+  totalDisbursements: z.string(),
+  successfulDisbursements: z.string(),
+  failedDisbursements: z.string(),
+  pendingDisbursements: z.string(),
+  cancelledDisbursements: z.string().optional(),
+  processingDisbursements: z.string().optional(),
+  totalAmount: z.string(),
+  successfulAmount: z.string(),
+  failedAmount: z.string(),
+  pendingAmount: z.string(),
+  cancelledAmount: z.string().optional(),
+  averageAmount: z.string().optional(),
+  minAmount: z.string().optional(),
+  maxAmount: z.string().optional(),
+  primaryCurrency: z.string(),
+  currencyBreakdown: z.string().optional(),
+  gatewayCounts: z.string().optional(),
+  gatewayAmounts: z.string().optional(),
+  gatewaySuccessRates: z.string().optional(),
+  merchantId: z.string().optional(),
+  merchantName: z.string().optional(),
+  uniqueMerchants: z.string().optional(),
+  topMerchants: z.string().optional(),
+  successRate: z.string().optional(),
+  failureRate: z.string().optional(),
+  averageProcessingTime: z.string().optional(),
+  retriedDisbursements: z.string().optional(),
+  averageRetryAttempts: z.string().optional(),
+  paymentMethodCounts: z.string().optional(),
+  paymentMethodAmounts: z.string().optional(),
+  paymentMethodSuccessRates: z.string().optional(),
+  uniqueDestinations: z.string().optional(),
+  topDestinationInstitutions: z.string().optional(),
+  topDestinationCountries: z.string().optional(),
+  peakHour: z.string().optional(),
+  peakDay: z.string().optional(),
+  hourlyBreakdown: z.string().optional(),
+  dailyBreakdown: z.string().optional(),
+  uniqueRecipients: z.string().optional(),
+  uniquePaymentMethods: z.string().optional(),
+  uniqueCurrencies: z.string().optional(),
+  growthRate: z.string().optional(),
+  trend: z.string().optional(),
+  associatedTransactions: z.string().optional(),
+  averageDisbursementsPerTransaction: z.string().optional(),
+  transactionSuccessRate: z.string().optional(),
+  generatedAt: z.string().optional(),
+  generationTime: z.string().optional(),
+  metadata: z.string().optional(),
+});
+
+export type DisbursementStatsItem = z.infer<typeof DisbursementStatsItemSchema>;
+
+// Disbursement Stats Response Schema
+export const DisbursementStatsResponseSchema = z.object({
+  status: z.boolean(),
+  statusCode: z.number(),
+  message: z.string(),
+  data: z.array(DisbursementStatsItemSchema),
+});
+
+export type DisbursementStatsResponse = z.infer<typeof DisbursementStatsResponseSchema>;
+
+// Query params for disbursement stats
+export interface DisbursementStatsParams {
+  startDate: string;
+  endDate: string;
+  merchantId?: string;
+  gatewayId?: string;
+}
+
+export type CanUpdateResponse = z.infer<typeof CanUpdateResponseSchema>;

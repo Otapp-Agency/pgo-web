@@ -122,6 +122,7 @@ export const API_ENDPOINTS = {
     // Core operations
     list: "/admin/v1/disbursements",
     getById: "/admin/v1/disbursements/{id}",
+    getByUid: "/admin/v1/disbursements/uid/{uid}",
     search: "/admin/v1/disbursements/search",
     summary: "/admin/v1/disbursements/summary",
 

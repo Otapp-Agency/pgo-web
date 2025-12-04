@@ -1,6 +1,7 @@
-import { DisbursementSchema, PaginatedDisbursementResponse } from '@/lib/definitions';
+import { DisbursementSchema, PaginatedDisbursementResponse, ProcessingHistoryEntry, AuditTrailEntry, CanUpdateResponse } from '@/lib/definitions';
 import { z } from 'zod';
 import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
+import { useQuery } from '@tanstack/react-query';
 
 /**
  * Query keys factory for disbursements
@@ -63,20 +64,17 @@ export function normalizeDisbursementParams(params: DisbursementListParams): Dis
 function normalizeDisbursementItem(item: Record<string, unknown>): Record<string, unknown> {
     return {
         ...item,
-        internalTransactionId: (item.internalTransactionId as string | undefined) ?? '',
-        externalTransactionId: (item.externalTransactionId as string | undefined) ?? '',
-        merchantTransactionId: (item.merchantTransactionId as string | undefined) ?? '',
-        pspTransactionId: (item.pspTransactionId as string | undefined) ?? '',
-        customerIdentifier: (item.customerIdentifier as string | undefined) ?? '',
-        paymentMethod: (item.paymentMethod as string | undefined) ?? '',
-        customerName: (item.customerName as string | undefined) ?? '',
+        pspDisbursementId: (item.pspDisbursementId as string | undefined) ?? '',
+        merchantDisbursementId: (item.merchantDisbursementId as string | undefined) ?? '',
+        sourceTransactionId: (item.sourceTransactionId as string | undefined) ?? '',
+        disbursementChannel: (item.disbursementChannel as string | undefined) ?? '',
+        recipientAccount: (item.recipientAccount as string | undefined) ?? '',
+        recipientName: (item.recipientName as string | undefined) ?? '',
+        description: (item.description as string | undefined) ?? '',
+        responseCode: (item.responseCode as string | undefined) ?? '',
+        responseMessage: (item.responseMessage as string | undefined) ?? '',
         errorCode: (item.errorCode as string | undefined) ?? '',
         errorMessage: (item.errorMessage as string | undefined) ?? '',
-        description: (item.description as string | undefined) ?? '',
-        merchantName: (item.merchantName as string | undefined) ?? '',
-        submerchantId: (item.submerchantId as string | undefined) ?? '',
-        submerchantUid: (item.submerchantUid as string | undefined) ?? '',
-        submerchantName: (item.submerchantName as string | undefined) ?? '',
     };
 }
 
@@ -340,4 +338,186 @@ export async function cancelDisbursement(
 
     const data = await response.json();
     return data;
+}
+
+/**
+ * Client-side query options for single disbursement detail
+ */
+export function disbursementDetailQueryOptions(disbursementId: string) {
+    const url = `/api/disbursements/${disbursementId}`;
+
+    return {
+        queryKey: disbursementsKeys.detail(disbursementId),
+        queryFn: async () => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('disbursementDetailQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch disbursement'
+                );
+            }
+
+            const responseData = await response.json();
+            return DisbursementSchema.parse(responseData);
+        },
+        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+        enabled: !!disbursementId,
+    };
+}
+
+/**
+ * Hook to fetch disbursement detail by ID/UID
+ */
+export function useDisbursementDetail(disbursementId: string) {
+    return useQuery(disbursementDetailQueryOptions(disbursementId));
+}
+
+/**
+ * Client-side query options for processing history
+ */
+export function processingHistoryQueryOptions(disbursementId: string) {
+    const url = `/api/disbursements/${disbursementId}/processing-history`;
+
+    return {
+        queryKey: [...disbursementsKeys.detail(disbursementId), 'processing-history'] as const,
+        queryFn: async (): Promise<ProcessingHistoryEntry[]> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('processingHistoryQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch processing history'
+                );
+            }
+
+            // API route transforms data to match ProcessingHistoryEntry format
+            const responseData = await response.json();
+            return responseData as ProcessingHistoryEntry[];
+        },
+        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+        enabled: !!disbursementId,
+    };
+}
+
+/**
+ * Hook to fetch processing history
+ */
+export function useProcessingHistory(disbursementId: string) {
+    return useQuery(processingHistoryQueryOptions(disbursementId));
+}
+
+/**
+ * Client-side query options for audit trail
+ */
+export function auditTrailQueryOptions(disbursementId: string) {
+    const url = `/api/disbursements/${disbursementId}/audit-trail`;
+
+    return {
+        queryKey: [...disbursementsKeys.detail(disbursementId), 'audit-trail'] as const,
+        queryFn: async (): Promise<AuditTrailEntry[]> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('auditTrailQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch audit trail'
+                );
+            }
+
+            // API route transforms data to match AuditTrailEntry format
+            const responseData = await response.json();
+            return responseData as AuditTrailEntry[];
+        },
+        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+        enabled: !!disbursementId,
+    };
+}
+
+/**
+ * Hook to fetch audit trail
+ */
+export function useAuditTrail(disbursementId: string) {
+    return useQuery(auditTrailQueryOptions(disbursementId));
+}
+
+/**
+ * Client-side query options for can-update check
+ */
+export function canUpdateQueryOptions(disbursementId: string) {
+    const url = `/api/disbursements/${disbursementId}/can-update`;
+
+    return {
+        queryKey: [...disbursementsKeys.detail(disbursementId), 'can-update'] as const,
+        queryFn: async (): Promise<CanUpdateResponse> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('canUpdateQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to check if disbursement can be updated'
+                );
+            }
+
+            const responseData = await response.json();
+            return responseData as CanUpdateResponse;
+        },
+        staleTime: 30 * 1000, // 30 seconds - shorter stale time since this can change
+        enabled: !!disbursementId,
+    };
+}
+
+/**
+ * Hook to check if disbursement can be updated
+ */
+export function useCanUpdate(disbursementId: string) {
+    return useQuery(canUpdateQueryOptions(disbursementId));
 }

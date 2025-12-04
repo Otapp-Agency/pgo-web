@@ -69,6 +69,8 @@ export const buildEndpointUrl = {
   // Disbursement endpoints with ID/parameter replacement
   disbursementById: (id: string) =>
     API_ENDPOINTS.disbursements.getById.replace("{id}", id),
+  disbursementByUid: (uid: string) =>
+    API_ENDPOINTS.disbursements.getByUid.replace("{uid}", uid),
   updateDisbursementStatus: (id: string) =>
     API_ENDPOINTS.disbursements.updateStatus.replace("{id}", id),
   retryDisbursement: (id: string) =>

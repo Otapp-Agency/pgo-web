@@ -10,6 +10,7 @@ import {
 } from '@/lib/definitions';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 import { getSession } from '@/lib/auth/services/auth.service';
+import { buildEndpointUrl } from '@/lib/config/endpoints';
 import { z } from 'zod';
 import { getQueryClient } from '@/lib/server-query-client';
 import { QUERY_CACHE } from '@/lib/config/constants';
@@ -25,20 +26,17 @@ export { getQueryClient, HydrateClient } from '@/lib/server-query-client';
 function normalizeFieldDefaults(item: Record<string, unknown>) {
   return {
     ...item,
-    internalTransactionId: item.internalTransactionId ?? '',
-    externalTransactionId: item.externalTransactionId ?? '',
-    merchantTransactionId: item.merchantTransactionId ?? '',
-    pspTransactionId: item.pspTransactionId ?? '',
-    customerIdentifier: item.customerIdentifier ?? '',
-    paymentMethod: item.paymentMethod ?? '',
-    customerName: item.customerName ?? '',
+    pspDisbursementId: item.pspDisbursementId ?? '',
+    merchantDisbursementId: item.merchantDisbursementId ?? '',
+    sourceTransactionId: item.sourceTransactionId ?? '',
+    disbursementChannel: item.disbursementChannel ?? '',
+    recipientAccount: item.recipientAccount ?? '',
+    recipientName: item.recipientName ?? '',
+    description: item.description ?? '',
+    responseCode: item.responseCode ?? '',
+    responseMessage: item.responseMessage ?? '',
     errorCode: item.errorCode ?? '',
     errorMessage: item.errorMessage ?? '',
-    description: item.description ?? '',
-    merchantName: item.merchantName ?? '',
-    submerchantId: item.submerchantId ?? '',
-    submerchantUid: item.submerchantUid ?? '',
-    submerchantName: item.submerchantName ?? '',
   };
 }
 
@@ -275,6 +273,97 @@ export async function prefetchMonthlyDisbursementSummary(
   );
   if (!cachedData) {
     console.warn('Warning: Prefetched monthly disbursement summary not found in cache');
+  }
+}
+
+/**
+ * Server-side function to fetch single disbursement detail
+ * Uses getSession() for authentication
+ * This function is server-only and should not be imported in client components
+ */
+async function fetchDisbursementDetailServer(disbursementId: string) {
+  const session = await getSession();
+
+  if (!session?.token) {
+    throw new Error('Unauthorized: No session token available');
+  }
+
+  // Try to determine if it's a UID (typically UUID format) or numeric ID
+  const isUid = disbursementId.includes('-') || disbursementId.length > 20;
+  
+  let url: string;
+  if (isUid) {
+    // Use UID endpoint
+    const endpoint = buildEndpointUrl.disbursementByUid(disbursementId);
+    url = `${API_CONFIG.baseURL}${endpoint}`;
+  } else {
+    // Use numeric ID endpoint
+    const endpoint = buildEndpointUrl.disbursementById(disbursementId);
+    url = `${API_CONFIG.baseURL}${endpoint}`;
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'Failed to fetch disbursement';
+
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      errorMessage = response.statusText || errorMessage;
+    }
+
+    if (response.status === 401) {
+      throw new Error(`Unauthorized: ${errorMessage}`);
+    } else if (response.status === 403) {
+      throw new Error(`Forbidden: ${errorMessage}`);
+    } else if (response.status === 404) {
+      throw new Error(`Not Found: ${errorMessage}`);
+    }
+
+    throw new Error(`${errorMessage} (Status: ${response.status})`);
+  }
+
+  const data = await response.json();
+
+  // Normalize the disbursement data (handle wrapped responses)
+  const disbursementData = data.data || data;
+  
+  // Normalize nullable string fields
+  const normalizedData = normalizeFieldDefaults(disbursementData);
+
+  // Validate and parse the response
+  return DisbursementSchema.parse(normalizedData);
+}
+
+/**
+ * Prefetch disbursement detail on the server
+ * This will populate the TanStack Query cache with the disbursement data
+ */
+export async function prefetchDisbursementDetail(disbursementId: string) {
+  const queryClient = getQueryClient();
+
+  const queryOptions = {
+    queryKey: disbursementsKeys.detail(disbursementId),
+    queryFn: () => fetchDisbursementDetailServer(disbursementId),
+    staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+  };
+
+  // Ensure prefetch completes before continuing
+  await queryClient.prefetchQuery(queryOptions);
+
+  // Verify the data is in the cache
+  const cachedData = queryClient.getQueryData(disbursementsKeys.detail(disbursementId));
+  if (!cachedData) {
+    console.warn('Warning: Prefetched disbursement detail not found in cache');
   }
 }
 
