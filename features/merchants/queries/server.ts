@@ -127,16 +127,16 @@ async function fetchMerchantsListServer(
 }
 
 /**
- * Server-side function to fetch single merchant details
+ * Server-side function to fetch single merchant details by UID
  */
-async function fetchMerchantDetailServer(merchantId: string) {
+async function fetchMerchantDetailServer(uid: string) {
     const session = await getSession();
 
     if (!session?.token) {
         throw new Error('Unauthorized: No session token available');
     }
 
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.merchants.getById.replace('{id}', merchantId)}`;
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.merchants.getByUid.replace('{uid}', uid)}`;
 
     const response = await fetch(url, {
         method: 'GET',
@@ -169,7 +169,63 @@ async function fetchMerchantDetailServer(merchantId: string) {
     }
 
     const responseData = await response.json();
-    return MerchantSchema.parse(responseData);
+    const merchant = responseData.data || responseData;
+    
+    // Transform backend response to frontend format
+    const transformedMerchant = {
+        id: merchant.id?.toString() || merchant.id,
+        uid: merchant.uid,
+        code: merchant.code,
+        name: merchant.name,
+        business_name: merchant.businessName || merchant.business_name,
+        business_registration_number: merchant.businessRegistrationNumber || merchant.business_registration_number,
+        business_address: merchant.businessAddress || merchant.business_address,
+        business_city: merchant.businessCity || merchant.business_city,
+        business_state: merchant.businessState || merchant.business_state,
+        business_postal_code: merchant.businessPostalCode || merchant.business_postal_code,
+        business_country: merchant.businessCountry || merchant.business_country,
+        contact_email: merchant.contactEmail || merchant.contact_email,
+        contact_phone: merchant.contactPhone || merchant.contact_phone,
+        website_url: merchant.websiteUrl || merchant.website_url,
+        merchant_type: merchant.merchantType || merchant.merchant_type,
+        status: merchant.status,
+        status_reason: merchant.statusReason || merchant.status_reason,
+        merchant_role: merchant.merchantRole || merchant.merchant_role,
+        kyc_verified: merchant.kycVerified ?? merchant.kyc_verified ?? false,
+        kyc_status: merchant.kycStatus || merchant.kyc_status,
+        kyc_notes: merchant.kycNotes || merchant.kyc_notes,
+        kyc_verified_at: merchant.kycVerifiedAt || merchant.kyc_verified_at,
+        kyc_verified_by: merchant.kycVerifiedBy || merchant.kyc_verified_by,
+        single_transaction_limit: merchant.singleTransactionLimit?.toString() || merchant.single_transaction_limit,
+        daily_transaction_limit: merchant.dailyTransactionLimit?.toString() || merchant.daily_transaction_limit,
+        monthly_transaction_limit: merchant.monthlyTransactionLimit?.toString() || merchant.monthly_transaction_limit,
+        parent_merchant_uid: merchant.parentMerchantUid || merchant.parent_merchant_uid,
+        parent_merchant_name: merchant.parentMerchantName || merchant.parent_merchant_name,
+        created_at: merchant.createdAt || merchant.created_at,
+        updated_at: merchant.updatedAt || merchant.updated_at,
+    };
+    
+    return MerchantSchema.parse(transformedMerchant);
+}
+
+/**
+ * Prefetch merchant detail on the server
+ */
+export async function prefetchMerchantDetail(uid: string) {
+    const queryClient = getQueryClient();
+    // Import merchantDetailKeys dynamically to avoid circular dependencies
+    const merchantsModule = await import('./merchants');
+    const merchantDetailKeys = merchantsModule.merchantDetailKeys || {
+        detail: (id: string) => ['merchant-detail', id] as const,
+    };
+
+    const queryOptions = {
+        queryKey: merchantDetailKeys.detail(uid),
+        queryFn: () => fetchMerchantDetailServer(uid),
+        staleTime: 60 * 1000, // 60 seconds
+    };
+
+    await queryClient.prefetchQuery(queryOptions);
 }
 
 /**

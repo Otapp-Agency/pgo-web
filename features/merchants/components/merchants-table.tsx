@@ -33,6 +33,7 @@ import { Merchant, MerchantSchema } from "@/lib/definitions"
 import { useMerchantsTableStore } from "@/lib/stores/merchants-table-store"
 import { useDeleteMerchant, useUpdateMerchantStatus } from "@/features/merchants/queries/merchants"
 import { BankAccountsDrawer } from "./bank-accounts-drawer"
+import { useRouter } from "next/navigation"
 
 // Re-export schema for build compatibility
 export const schema = MerchantSchema
@@ -426,6 +427,7 @@ interface ActionCellProps {
 }
 
 function ActionCell({ merchant }: ActionCellProps) {
+    const router = useRouter()
     const [showStatusDialog, setShowStatusDialog] = React.useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [showBankAccountsDrawer, setShowBankAccountsDrawer] = React.useState(false)
@@ -488,8 +490,9 @@ function ActionCell({ merchant }: ActionCellProps) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => merchant.uid && router.push(`/merchants/${merchant.uid}`)}>
+                        View Details
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {/* Status Actions */}
                     {currentStatus !== 'ACTIVE' && (
@@ -1066,134 +1069,17 @@ export function MerchantsTable({
 
 
 function TableCellViewer({ item, displayText }: { item: Merchant; displayText?: string }) {
-    const isMobile = useIsMobile()
+    const router = useRouter()
     const textToShow = displayText || item.id || "-"
 
     return (
-        <Drawer direction={isMobile ? "bottom" : "right"}>
-            <DrawerTrigger asChild>
-                <Button variant="link" className="text-foreground w-fit px-0 text-left font-mono text-xs">
-                    {textToShow}
-                </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-                <DrawerHeader className="gap-1">
-                    <DrawerTitle>Merchant Details</DrawerTitle>
-                    <DrawerDescription>
-                        Merchant ID: {item.id}
-                    </DrawerDescription>
-                </DrawerHeader>
-                <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-                    {/* Merchant Information Section */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Merchant Information</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">ID:</span>
-                                <span className="font-mono text-xs">{item.id}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">UID:</span>
-                                <span className="font-mono text-xs">{item.uid}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Code:</span>
-                                <span className="font-mono">{item.code}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Name:</span>
-                                <span>{item.name}</span>
-                            </div>
-                            {item.merchant_type && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Type:</span>
-                                    <Badge variant="outline">{item.merchant_type}</Badge>
-                                </div>
-                            )}
-                            {item.contact_email && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Email:</span>
-                                    <span>{item.contact_email}</span>
-                                </div>
-                            )}
-                            {item.contact_phone && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Contact Info:</span>
-                                    <span>{item.contact_phone}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Status Information */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Status</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Status:</span>
-                                <Badge variant={item.status === 'active' ? "default" : "secondary"}>
-                                    {item.status === 'active' ? (
-                                        <>
-                                            <IconCircleCheckFilled className="mr-1 size-3" />
-                                            Active
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="mr-1">✕</span>
-                                            Inactive
-                                        </>
-                                    )}
-                                </Badge>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">KYC Verified:</span>
-                                <Badge variant={item.kyc_verified ? "default" : "secondary"}>
-                                    {item.kyc_verified ? (
-                                        <>
-                                            <IconShieldCheck className="mr-1 size-3" />
-                                            Verified
-                                        </>
-                                    ) : (
-                                        <>
-                                            <IconShieldX className="mr-1 size-3" />
-                                            Not Verified
-                                        </>
-                                    )}
-                                </Badge>
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Timestamps */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Timestamps</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            {item.created_at && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Created:</span>
-                                    <span>{formatDate(item.created_at)}</span>
-                                </div>
-                            )}
-                            {item.updated_at && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Updated:</span>
-                                    <span>{formatDate(item.updated_at)}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <DrawerFooter>
-                    <DrawerClose asChild>
-                        <Button variant="outline">Close</Button>
-                    </DrawerClose>
-                </DrawerFooter>
-            </DrawerContent>
-        </Drawer>
+        <Button 
+            variant="link" 
+            className="text-foreground w-fit px-0 text-left font-mono text-xs hover:underline"
+            onClick={() => item.uid && router.push(`/merchants/${item.uid}`)}
+        >
+            {textToShow}
+        </Button>
     )
 }
 

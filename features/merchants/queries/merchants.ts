@@ -1,4 +1,4 @@
-import { MerchantSchema, PaginatedMerchantResponse, BankAccountSchema, BankAccount, MerchantStatusUpdateRequest, CreateMerchantRequest, CreateBankAccountRequest } from '@/lib/definitions';
+import { MerchantSchema, PaginatedMerchantResponse, BankAccountSchema, BankAccount, MerchantStatusUpdateRequest, CreateMerchantRequest, CreateBankAccountRequest, MerchantActivitySummarySchema, MerchantActivitySummary, MerchantApiKeySchema, MerchantApiKey, MerchantApiKeyCreateRequestSchema, MerchantApiKeyCreateRequest, MerchantLookupSchema, MerchantLookup, MerchantParentAssignmentRequestSchema, MerchantParentAssignmentRequest, PaginatedMerchantApiKeyResponse, PaginatedMerchantLookupResponse } from '@/lib/definitions';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -463,6 +463,358 @@ export function useCreateMerchant() {
         onError: (error: Error) => {
             toast.error(error.message || 'Failed to create merchant');
         },
+    });
+}
+
+/**
+ * Query keys for merchant detail
+ */
+export const merchantDetailKeys = {
+    all: ['merchant-detail'] as const,
+    detail: (uid: string) => [...merchantDetailKeys.all, uid] as const,
+    subMerchants: (uid: string) => [...merchantDetailKeys.detail(uid), 'sub-merchants'] as const,
+    activity: (uid: string) => [...merchantDetailKeys.detail(uid), 'activity'] as const,
+    apiKeys: (uid: string) => [...merchantDetailKeys.detail(uid), 'api-keys'] as const,
+};
+
+/**
+ * Hook to fetch merchant detail by UID
+ */
+export function useMerchantDetail(uid: string) {
+    return useQuery({
+        queryKey: merchantDetailKeys.detail(uid),
+        queryFn: async () => {
+            const url = `/api/merchants/${uid}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useMerchantDetail should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch merchant'
+                );
+            }
+
+            const responseData = await response.json();
+            return MerchantSchema.parse(responseData);
+        },
+        enabled: !!uid,
+        staleTime: 60 * 1000, // 60 seconds
+    });
+}
+
+/**
+ * Hook to fetch sub-merchants
+ */
+export function useSubMerchants(uid: string, page: number = 0, per_page: number = 15) {
+    return useQuery({
+        queryKey: [...merchantDetailKeys.subMerchants(uid), page, per_page],
+        queryFn: async (): Promise<PaginatedMerchantResponse> => {
+            const url = `/api/merchants/${uid}/sub-merchants?page=${page}&per_page=${per_page}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useSubMerchants should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch sub-merchants'
+                );
+            }
+
+            const responseData = await response.json();
+            return {
+                data: z.array(MerchantSchema).parse(responseData.data || []),
+                pageNumber: responseData.pageNumber ?? page,
+                pageSize: responseData.pageSize ?? per_page,
+                totalElements: responseData.totalElements ?? 0,
+                totalPages: responseData.totalPages ?? 0,
+                last: responseData.last ?? true,
+                first: responseData.first ?? (page === 0),
+            };
+        },
+        enabled: !!uid,
+        staleTime: 30 * 1000, // 30 seconds
+    });
+}
+
+/**
+ * Hook to fetch merchant activity summary
+ */
+export function useMerchantActivity(uid: string) {
+    return useQuery({
+        queryKey: merchantDetailKeys.activity(uid),
+        queryFn: async (): Promise<MerchantActivitySummary> => {
+            const url = `/api/merchants/${uid}/activity`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useMerchantActivity should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch merchant activity'
+                );
+            }
+
+            const responseData = await response.json();
+            return MerchantActivitySummarySchema.parse(responseData);
+        },
+        enabled: !!uid,
+        staleTime: 30 * 1000, // 30 seconds
+    });
+}
+
+/**
+ * Hook to fetch merchant API keys
+ */
+export function useMerchantApiKeys(uid: string, page: number = 0, per_page: number = 15) {
+    return useQuery({
+        queryKey: [...merchantDetailKeys.apiKeys(uid), page, per_page],
+        queryFn: async (): Promise<PaginatedMerchantApiKeyResponse> => {
+            const url = `/api/merchants/${uid}/api-keys?page=${page}&per_page=${per_page}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useMerchantApiKeys should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch API keys'
+                );
+            }
+
+            const responseData = await response.json();
+            return {
+                data: z.array(MerchantApiKeySchema).parse(responseData.data || []),
+                pageNumber: responseData.pageNumber ?? page,
+                pageSize: responseData.pageSize ?? per_page,
+                totalElements: responseData.totalElements ?? 0,
+                totalPages: responseData.totalPages ?? 0,
+                last: responseData.last ?? true,
+            };
+        },
+        enabled: !!uid,
+        staleTime: 30 * 1000, // 30 seconds
+    });
+}
+
+/**
+ * Hook to create a new API key
+ */
+export function useCreateApiKey() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ uid, request }: { uid: string; request?: MerchantApiKeyCreateRequest }) => {
+            const url = `/api/merchants/${uid}/api-keys`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useCreateApiKey should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(request || {}),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to create API key'
+                );
+            }
+
+            const responseData = await response.json();
+            return { ...responseData, uid };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantDetailKeys.apiKeys(data.uid) });
+            toast.success(data.message || 'API key created successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to create API key');
+        },
+    });
+}
+
+/**
+ * Hook to revoke an API key
+ */
+export function useRevokeApiKey() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ uid, apiKey }: { uid: string; apiKey: string }) => {
+            const url = `/api/merchants/${uid}/api-keys/${encodeURIComponent(apiKey)}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useRevokeApiKey should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to revoke API key'
+                );
+            }
+
+            const responseData = await response.json();
+            return { ...responseData, uid };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantDetailKeys.apiKeys(data.uid) });
+            toast.success(data.message || 'API key revoked successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to revoke API key');
+        },
+    });
+}
+
+/**
+ * Hook to update merchant parent
+ */
+export function useUpdateMerchantParent() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ uid, parentMerchantUid }: { uid: string; parentMerchantUid: string | null }) => {
+            const url = `/api/merchants/${uid}/parent`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useUpdateMerchantParent should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ parentMerchantUid }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to update merchant parent'
+                );
+            }
+
+            const responseData = await response.json();
+            return { ...responseData, uid };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: merchantDetailKeys.detail(data.uid) });
+            queryClient.invalidateQueries({ queryKey: merchantsKeys.lists() });
+            toast.success(data.message || 'Merchant parent updated successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to update merchant parent');
+        },
+    });
+}
+
+/**
+ * Hook to lookup merchants (for autocomplete/search)
+ */
+export function useMerchantLookup(query: string, page: number = 0, size: number = 50) {
+    return useQuery({
+        queryKey: ['merchant-lookup', query, page, size],
+        queryFn: async (): Promise<PaginatedMerchantLookupResponse> => {
+            const url = `/api/merchants/lookup?q=${encodeURIComponent(query)}&page=${page}&size=${size}`;
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('useMerchantLookup should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to lookup merchants'
+                );
+            }
+
+            const responseData = await response.json();
+            return {
+                data: z.array(MerchantLookupSchema).parse(responseData.data || []),
+                meta: {
+                    pageNumber: responseData.meta?.pageNumber ?? page,
+                    pageSize: responseData.meta?.pageSize ?? size,
+                    totalElements: responseData.meta?.totalElements ?? 0,
+                    totalPages: responseData.meta?.totalPages ?? 0,
+                    last: responseData.meta?.last ?? true,
+                },
+            };
+        },
+        enabled: query.length > 0,
+        staleTime: 30 * 1000, // 30 seconds
     });
 }
 

@@ -222,15 +222,24 @@ export const CreateMerchantRequestSchema = z.object({
 export type CreateMerchantRequest = z.infer<typeof CreateMerchantRequestSchema>
 
 export const AuditLogSchema = z.object({
-  id: z.string(),
-  user_id: z.string().nullable(),
+  id: z.number(),
+  userUid: z.string().nullable(),
   username: z.string().nullable(),
-  action: z.string(), // e.g., 'USER_CREATED', 'PGO_UPDATED' - required field from API
-  description: z.string(),
-  ip_address: z.string(),
-  old_values: z.record(z.string(), z.unknown()).nullable(),
-  new_values: z.record(z.string(), z.unknown()).nullable(),
-  timestamp: z.string(), // datetime
+  eventType: z.string(),
+  event: z.string(),
+  details: z.string().nullable(),
+  success: z.boolean(),
+  resourceUid: z.string().nullable(),
+  resourceType: z.string().nullable(),
+  merchantId: z.string().nullable(),
+  ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  requestId: z.string().nullable(),
+  requestMethod: z.string().nullable(),
+  requestPath: z.string().nullable(),
+  metadata: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 })
 
 export type AuditLog = z.infer<typeof AuditLogSchema>
@@ -322,3 +331,72 @@ import type { PaginatedApiResponse } from '@/lib/types'
 export type PaginatedDisbursementResponse = PaginatedApiResponse<Disbursement>
 export type PaginatedUserResponse = PaginatedApiResponse<User>
 export type PaginatedMerchantResponse = PaginatedApiResponse<Merchant>
+
+// Merchant Activity Summary Schema
+export const MerchantActivitySummarySchema = z.object({
+  totalTransactions: z.number(),
+  successfulTransactions: z.number(),
+  failedTransactions: z.number(),
+  pendingTransactions: z.number(),
+  totalDisbursements: z.number(),
+  lastTransactionAt: z.string().nullable().optional(),
+})
+
+export type MerchantActivitySummary = z.infer<typeof MerchantActivitySummarySchema>
+
+// Merchant API Key Schema
+export const MerchantApiKeySchema = z.object({
+  apiKey: z.string(),
+  secretKey: z.string().nullable().optional(), // Only returned at creation time
+  expiresAt: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+})
+
+export type MerchantApiKey = z.infer<typeof MerchantApiKeySchema>
+
+// Merchant API Key Create Request Schema
+export const MerchantApiKeyCreateRequestSchema = z.object({
+  validityDays: z.number().min(1).max(1095).optional(),
+})
+
+export type MerchantApiKeyCreateRequest = z.infer<typeof MerchantApiKeyCreateRequestSchema>
+
+// Merchant Lookup Schema (lightweight for autocomplete)
+export const MerchantLookupSchema = z.object({
+  id: z.string(),
+  uid: z.string(),
+  name: z.string(),
+  code: z.string(),
+  status: z.string().nullable().optional(),
+})
+
+export type MerchantLookup = z.infer<typeof MerchantLookupSchema>
+
+// Merchant Parent Assignment Request Schema
+export const MerchantParentAssignmentRequestSchema = z.object({
+  parentMerchantUid: z.string().nullable().optional(),
+})
+
+export type MerchantParentAssignmentRequest = z.infer<typeof MerchantParentAssignmentRequestSchema>
+
+// Paginated API Key Response
+export interface PaginatedMerchantApiKeyResponse {
+  data: MerchantApiKey[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+// Paginated Merchant Lookup Response
+export interface PaginatedMerchantLookupResponse {
+  data: MerchantLookup[];
+  meta: {
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    last: boolean;
+  };
+}

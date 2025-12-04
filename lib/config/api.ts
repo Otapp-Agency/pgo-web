@@ -218,6 +218,14 @@ export const API_ENDPOINTS = {
     // Utility
     exists: "/admin/v1/merchants/exists/{code}",
     validateCode: "/admin/v1/merchants/validate-code/{code}",
+    lookup: "/admin/v1/merchants/lookup",
+
+    // Sub-merchants and Relationships
+    subMerchants: "/admin/v1/merchants/uid/{uid}/sub-merchants",
+    updateParent: "/admin/v1/merchants/uid/{uid}/parent",
+
+    // Activity
+    activity: "/admin/v1/merchants/uid/{uid}/activity",
   },
 
   // Payment Gateways endpoints
