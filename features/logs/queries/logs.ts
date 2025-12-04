@@ -18,11 +18,12 @@ export interface AuditLogListParams {
     page?: number;
     per_page?: number;
     search?: string;
-    user_id?: string;
-    action_type?: string;
+    userUid?: string;
+    eventType?: string;
+    merchantUid?: string;
     search_term?: string;
-    start_date?: string;
-    end_date?: string;
+    startDate?: string;
+    endDate?: string;
     sort?: string[];
 }
 
@@ -38,11 +39,12 @@ export function normalizeAuditLogParams(params: AuditLogListParams): AuditLogLis
     };
     // Add other params only if they have values
     if (params.search) normalized.search = params.search;
-    if (params.user_id) normalized.user_id = params.user_id;
-    if (params.action_type) normalized.action_type = params.action_type;
+    if (params.userUid) normalized.userUid = params.userUid;
+    if (params.eventType) normalized.eventType = params.eventType;
+    if (params.merchantUid) normalized.merchantUid = params.merchantUid;
     if (params.search_term) normalized.search_term = params.search_term;
-    if (params.start_date) normalized.start_date = params.start_date;
-    if (params.end_date) normalized.end_date = params.end_date;
+    if (params.startDate) normalized.startDate = params.startDate;
+    if (params.endDate) normalized.endDate = params.endDate;
     if (params.sort && params.sort.length > 0) normalized.sort = params.sort;
 
     return normalized;
@@ -81,7 +83,7 @@ export function auditLogsListQueryOptions(
         }
     });
 
-    const url = `/api/v1/audit-logs?${queryParams.toString()}`;
+    const url = `/api/logs?${queryParams.toString()}`;
 
     // Query key uses normalized params to ensure consistent caching
     // Same params with different object references will now match
@@ -167,8 +169,8 @@ export function auditLogsListQueryOptions(
 /**
  * Client-side query options for single audit log detail
  */
-export function auditLogDetailQueryOptions(auditLogId: string) {
-    const url = `/api/v1/audit-logs/${auditLogId}`;
+export function auditLogDetailQueryOptions(auditLogId: string | number) {
+    const url = `/api/logs/${auditLogId}`;
 
     return {
         queryKey: auditLogsKeys.detail(auditLogId),

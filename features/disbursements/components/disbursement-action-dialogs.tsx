@@ -50,7 +50,8 @@ export function CompleteDisbursementDialog({
         mutationFn: () => completeDisbursement(disbursementId, { reason: reason || undefined }),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.detail(disbursementId) });
+            // Invalidate all detail queries to handle both UID and numeric ID keys
+            queryClient.invalidateQueries({ queryKey: disbursementsKeys.details() });
             toast.success(data.message || 'Disbursement completed successfully');
             handleClose();
         },
@@ -157,7 +158,8 @@ export function CancelDisbursementDialog({
         mutationFn: () => cancelDisbursement(disbursementId, { reason: reason || undefined }),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.detail(disbursementId) });
+            // Invalidate all detail queries to handle both UID and numeric ID keys
+            queryClient.invalidateQueries({ queryKey: disbursementsKeys.details() });
             toast.success(data.message || 'Disbursement cancelled successfully');
             handleClose();
         },

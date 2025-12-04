@@ -2,11 +2,11 @@ import 'server-only';
 import { disbursementsKeys, normalizeDisbursementParams, type DisbursementListParams } from './disbursements';
 import { reportsKeys, normalizeReportParams, getCurrentPeriod } from './reports';
 import {
-    DisbursementSchema,
-    PaginatedDisbursementResponse,
-    MonthlyDisbursementSummarySchema,
-    type MonthlyDisbursementSummary,
-    type MonthlyDisbursementSummaryParams,
+  DisbursementSchema,
+  PaginatedDisbursementResponse,
+  MonthlyDisbursementSummarySchema,
+  type MonthlyDisbursementSummary,
+  type MonthlyDisbursementSummaryParams,
 } from '@/lib/definitions';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 import { getSession } from '@/lib/auth/services/auth.service';
@@ -290,7 +290,7 @@ async function fetchDisbursementDetailServer(disbursementId: string) {
 
   // Try to determine if it's a UID (typically UUID format) or numeric ID
   const isUid = disbursementId.includes('-') || disbursementId.length > 20;
-  
+
   let url: string;
   if (isUid) {
     // Use UID endpoint
@@ -336,7 +336,7 @@ async function fetchDisbursementDetailServer(disbursementId: string) {
 
   // Normalize the disbursement data (handle wrapped responses)
   const disbursementData = data.data || data;
-  
+
   // Normalize nullable string fields
   const normalizedData = normalizeFieldDefaults(disbursementData);
 

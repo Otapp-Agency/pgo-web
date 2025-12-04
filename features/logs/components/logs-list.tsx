@@ -34,21 +34,22 @@ export default function LogsList() {
         const params: Partial<AuditLogListParams> = {};
 
         columnFilters.forEach(filter => {
-            if (filter.id === 'action' && Array.isArray(filter.value)) {
-                // For action filter, join multiple values with comma
-                const actionValues = filter.value as string[];
-                if (actionValues.length > 0) {
-                    // Map action values to action_type query param (API expects action_type)
-                    params.action_type = actionValues.join(',');
+            if (filter.id === 'eventType' && Array.isArray(filter.value)) {
+                // For eventType filter, join multiple values with comma
+                const eventTypeValues = filter.value as string[];
+                if (eventTypeValues.length > 0) {
+                    params.eventType = eventTypeValues.join(',');
                 }
-            } else if (filter.id === 'user_id' && filter.value) {
-                params.user_id = filter.value as string;
+            } else if (filter.id === 'userUid' && filter.value) {
+                params.userUid = filter.value as string;
+            } else if (filter.id === 'merchantUid' && filter.value) {
+                params.merchantUid = filter.value as string;
             } else if (filter.id === 'search_term' && filter.value) {
                 params.search_term = filter.value as string;
-            } else if (filter.id === 'start_date' && filter.value) {
-                params.start_date = filter.value as string;
-            } else if (filter.id === 'end_date' && filter.value) {
-                params.end_date = filter.value as string;
+            } else if (filter.id === 'startDate' && filter.value) {
+                params.startDate = filter.value as string;
+            } else if (filter.id === 'endDate' && filter.value) {
+                params.endDate = filter.value as string;
             }
         });
 

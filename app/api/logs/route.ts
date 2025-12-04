@@ -18,35 +18,44 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const queryParams = new URLSearchParams();
 
-        // Query Parameters: start_date, end_date, user_id, action_type(e.g., user.create,
-            // pgo.update, transaction.status_update), search_term(description).
+        // Query Parameters mapping: frontend snake_case -> backend camelCase
+        // Backend expects: eventType, event, userUid, merchantUid, startDate, endDate
 
-        // Add all query parameters if they exist
-        const allowedParams = [
-            'page',
-            'per_page',
-            'search',
-            'user_id',
-            'action_type',
-            'search_term',
-            'start_date',
-            'end_date',
-            'sort',
-        ];
+        // Handle pagination (frontend uses 0-based, backend also uses 0-based)
+        const pageValue = searchParams.get('page');
+        if (pageValue) {
+            const pageNum = parseInt(pageValue, 10);
+            queryParams.set('page', Math.max(0, pageNum).toString());
+        }
 
-        allowedParams.forEach((param) => {
+        const perPageValue = searchParams.get('per_page');
+        if (perPageValue) {
+            queryParams.set('size', perPageValue);
+        }
+
+        // Map frontend params to backend camelCase format
+        const paramMapping: Record<string, string> = {
+            'user_id': 'userUid',
+            'action_type': 'eventType',
+            'start_date': 'startDate',
+            'end_date': 'endDate',
+            'merchant_id': 'merchantUid',
+        };
+
+        // Handle mapped parameters
+        Object.entries(paramMapping).forEach(([frontendParam, backendParam]) => {
+            const value = searchParams.get(frontendParam);
+            if (value) {
+                queryParams.set(backendParam, value);
+            }
+        });
+
+        // Handle other parameters that don't need mapping
+        const otherParams = ['event', 'search_term', 'sort'];
+        otherParams.forEach((param) => {
             const value = searchParams.get(param);
             if (value) {
-                // Backend API uses 'size' instead of 'per_page'
-                if (param === 'per_page') {
-                    queryParams.set('size', value);
-                } else if (param === 'page') {
-                    // Frontend uses 1-based pagination, backend uses 0-based
-                    // Convert: page 1 -> 0, page 2 -> 1, etc.
-                    const pageNum = parseInt(value, 10);
-                    queryParams.set('page', Math.max(0, pageNum - 1).toString());
-                } else if (param === 'sort') {
-                    // Sort parameter is passed as comma-separated string
+                if (param === 'sort') {
                     queryParams.set('sort', value);
                 } else {
                     queryParams.set(param, value);
@@ -83,26 +92,26 @@ export async function GET(request: NextRequest) {
 
         // Handle response format from backend
         // Backend API returns: { status, statusCode, message, data: AuditLog[], pageNumber, pageSize, totalElements, totalPages, last }
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-            // Backend uses 0-based pagination, convert to 1-based for frontend
+        if (data.data && Array.isArray(data.data)) {
+            // Backend uses 0-based pagination, frontend also uses 0-based
             const backendPageNumber = data.pageNumber ?? 0;
-            const page = parseInt(searchParams.get('page') || '1', 10);
+            const page = parseInt(searchParams.get('page') || '0', 10);
             const perPage = parseInt(searchParams.get('per_page') || '15', 10);
 
             const paginatedResponse = {
                 data: data.data,
-                pageNumber: backendPageNumber + 1, // Convert to 1-based
+                pageNumber: backendPageNumber, // Keep 0-based
                 pageSize: data.pageSize ?? perPage,
                 totalElements: data.totalElements ?? data.data.length,
                 totalPages: data.totalPages ?? Math.ceil((data.totalElements ?? data.data.length) / (data.pageSize ?? perPage)),
                 last: data.last ?? false,
-                first: backendPageNumber === 0,
+                first: data.first ?? (backendPageNumber === 0),
             };
 
             return NextResponse.json(paginatedResponse);
         } else if (Array.isArray(data) && data.length > 0) {
             // Backend returned just an array (legacy format)
-            const page = parseInt(searchParams.get('page') || '1', 10);
+            const page = parseInt(searchParams.get('page') || '0', 10);
             const perPage = parseInt(searchParams.get('per_page') || '15', 10);
 
             const paginatedResponse = {
@@ -112,7 +121,7 @@ export async function GET(request: NextRequest) {
                 totalElements: data.length,
                 totalPages: 1,
                 last: true,
-                first: page === 1,
+                first: page === 0,
             };
 
             return NextResponse.json(paginatedResponse);

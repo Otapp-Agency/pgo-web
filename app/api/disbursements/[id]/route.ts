@@ -35,7 +35,7 @@ export async function GET(
         // Try to determine if it's a UID (typically UUID format) or numeric ID
         // UUIDs are typically 36 characters with dashes, numeric IDs are shorter
         const isUid = disbursementId.includes('-') || disbursementId.length > 20;
-        
+
         let url: string;
         if (isUid) {
             // Use UID endpoint
@@ -79,7 +79,7 @@ export async function GET(
 
         // Normalize the disbursement data (handle wrapped responses)
         const disbursementData = data.data || data;
-        
+
         // Normalize nullable string fields
         const normalizedData = {
             ...disbursementData,
@@ -102,7 +102,7 @@ export async function GET(
         return NextResponse.json(parsed);
     } catch (error) {
         console.error('[Disbursements Detail API] Error:', error);
-        
+
         if (error instanceof Error && error.name === 'ZodError') {
             return NextResponse.json(
                 { error: 'Invalid disbursement data format', details: error.message },

@@ -109,21 +109,39 @@ export async function GET(
 
         const data = await response.json();
 
-        // Transform response to frontend format
+        // Transform response to frontend format - match server-side transformation
         const merchant = data.data || data;
         const transformedMerchant = {
-            id: merchant.id,
+            id: merchant.id?.toString() || merchant.id,
             uid: merchant.uid,
             code: merchant.code,
             name: merchant.name,
-            type: merchant.type ?? null,
-            status: merchant.status ?? merchant.activeStatus ?? 'ACTIVE',
+            business_name: merchant.businessName || merchant.business_name,
+            business_registration_number: merchant.businessRegistrationNumber || merchant.business_registration_number,
+            business_address: merchant.businessAddress || merchant.business_address,
+            business_city: merchant.businessCity || merchant.business_city,
+            business_state: merchant.businessState || merchant.business_state,
+            business_postal_code: merchant.businessPostalCode || merchant.business_postal_code,
+            business_country: merchant.businessCountry || merchant.business_country,
+            contact_email: merchant.contactEmail || merchant.contact_email,
+            contact_phone: merchant.contactPhone || merchant.contact_phone,
+            website_url: merchant.websiteUrl || merchant.website_url,
+            merchant_type: merchant.merchantType || merchant.merchant_type,
+            status: merchant.status,
+            status_reason: merchant.statusReason || merchant.status_reason,
+            merchant_role: merchant.merchantRole || merchant.merchant_role,
             kyc_verified: merchant.kycVerified ?? merchant.kyc_verified ?? false,
-            email: merchant.email ?? null,
-            contact_info: merchant.contactInfo ?? merchant.contact_info ?? null,
-            description: merchant.description ?? null,
-            created_at: merchant.createdAt ?? merchant.created_at ?? null,
-            updated_at: merchant.updatedAt ?? merchant.updated_at ?? null,
+            kyc_status: merchant.kycStatus || merchant.kyc_status,
+            kyc_notes: merchant.kycNotes || merchant.kyc_notes,
+            kyc_verified_at: merchant.kycVerifiedAt || merchant.kyc_verified_at,
+            kyc_verified_by: merchant.kycVerifiedBy || merchant.kyc_verified_by,
+            single_transaction_limit: merchant.singleTransactionLimit?.toString() || merchant.single_transaction_limit,
+            daily_transaction_limit: merchant.dailyTransactionLimit?.toString() || merchant.daily_transaction_limit,
+            monthly_transaction_limit: merchant.monthlyTransactionLimit?.toString() || merchant.monthly_transaction_limit,
+            parent_merchant_uid: merchant.parentMerchantUid || merchant.parent_merchant_uid,
+            parent_merchant_name: merchant.parentMerchantName || merchant.parent_merchant_name,
+            created_at: merchant.createdAt || merchant.created_at,
+            updated_at: merchant.updatedAt || merchant.updated_at,
         };
 
         return NextResponse.json(transformedMerchant);

@@ -103,10 +103,11 @@ function formatDate(dateString: string | null): string {
     }
 }
 
-// Helper function to truncate ID
-function truncateId(id: string, maxLength: number = 20): string {
-    if (!id || id.length <= maxLength) return id
-    return `${id.substring(0, maxLength)}...`
+// Helper function to truncate ID (handles both string and number)
+function truncateId(id: string | number, maxLength: number = 20): string {
+    const idStr = String(id)
+    if (!idStr || idStr.length <= maxLength) return idStr
+    return `${idStr.substring(0, maxLength)}...`
 }
 
 // Sortable header component
@@ -202,18 +203,18 @@ const columns: ColumnDef<AuditLog>[] = [
         size: 180,
     },
     {
-        accessorKey: "action",
+        accessorKey: "eventType",
         header: ({ header }) => (
             <SortableHeader header={header}>
-                Action
+                Event Type
             </SortableHeader>
         ),
         cell: ({ row }) => {
-            const action = row.original.action || "-"
+            const eventType = row.original.eventType || "-"
             return (
                 <div className="max-w-[200px] min-w-[150px]">
                     <Badge variant="outline" className="px-2 py-0.5 whitespace-nowrap font-mono text-xs">
-                        {action}
+                        {eventType}
                     </Badge>
                 </div>
             )
@@ -235,21 +236,21 @@ const columns: ColumnDef<AuditLog>[] = [
         size: 200,
     },
     {
-        accessorKey: "description",
+        accessorKey: "event",
         header: ({ header }) => (
             <SortableHeader header={header}>
-                Description
+                Event
             </SortableHeader>
         ),
         cell: ({ row }) => (
             <div className="max-w-[400px] min-w-[300px]">
-                <div className="truncate text-sm">{row.original.description || "-"}</div>
+                <div className="truncate text-sm">{row.original.event || "-"}</div>
             </div>
         ),
         size: 400,
     },
     {
-        accessorKey: "ip_address",
+        accessorKey: "ipAddress",
         header: ({ header }) => (
             <SortableHeader header={header}>
                 IP Address
@@ -257,31 +258,31 @@ const columns: ColumnDef<AuditLog>[] = [
         ),
         cell: ({ row }) => (
             <div className="max-w-[150px] min-w-[120px]">
-                <div className="truncate font-mono text-xs">{row.original.ip_address || "-"}</div>
+                <div className="truncate font-mono text-xs">{row.original.ipAddress || "-"}</div>
             </div>
         ),
         size: 150,
     },
     {
-        accessorKey: "timestamp",
+        accessorKey: "createdAt",
         header: ({ header }) => (
             <SortableHeader header={header}>
-                Timestamp
+                Created At
             </SortableHeader>
         ),
         sortingFn: (rowA, rowB) => {
-            const dateA = rowA.original.timestamp
-                ? new Date(rowA.original.timestamp).getTime()
+            const dateA = rowA.original.createdAt
+                ? new Date(rowA.original.createdAt).getTime()
                 : 0
-            const dateB = rowB.original.timestamp
-                ? new Date(rowB.original.timestamp).getTime()
+            const dateB = rowB.original.createdAt
+                ? new Date(rowB.original.createdAt).getTime()
                 : 0
             return dateA - dateB
         },
         cell: ({ row }) => {
-            const timestamp = row.original.timestamp || null
+            const createdAt = row.original.createdAt || null
             return (
-                <div className="text-sm whitespace-nowrap">{formatDate(timestamp)}</div>
+                <div className="text-sm whitespace-nowrap">{formatDate(createdAt)}</div>
             )
         },
         size: 160,
@@ -405,32 +406,32 @@ export function LogsTable({
 
 
     // Get unique values for filters
-    const actionColumn = table.getColumn("action")
+    const eventTypeColumn = table.getColumn("eventType")
 
     // Get filter values for badge display
-    const actionFilter = actionColumn?.getFilterValue() as string[] | undefined
+    const eventTypeFilter = eventTypeColumn?.getFilterValue() as string[] | undefined
 
-    // Get unique actions from data for filter dropdown
-    const uniqueActions = React.useMemo(() => {
-        const actions = new Set<string>()
+    // Get unique event types from data for filter dropdown
+    const uniqueEventTypes = React.useMemo(() => {
+        const eventTypes = new Set<string>()
         data.forEach(log => {
-            if (log.action) actions.add(log.action)
+            if (log.eventType) eventTypes.add(log.eventType)
         })
-        return Array.from(actions).sort()
+        return Array.from(eventTypes).sort()
     }, [data])
 
     return (
         <div className="w-full flex flex-col gap-6">
             <div className="flex items-center justify-end gap-2 px-4 lg:px-6 shrink-0">
-                {/* Action Filter */}
-                {uniqueActions.length > 0 && (
+                {/* Event Type Filter */}
+                {uniqueEventTypes.length > 0 && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm">
-                                Action
-                                {actionFilter && actionFilter.length > 0 && (
+                                Event Type
+                                {eventTypeFilter && eventTypeFilter.length > 0 && (
                                     <Badge variant="secondary" className="ml-2">
-                                        {actionFilter.length}
+                                        {eventTypeFilter.length}
                                     </Badge>
                                 )}
                                 <IconChevronDown />
@@ -438,30 +439,30 @@ export function LogsTable({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuCheckboxItem
-                                checked={!actionFilter || actionFilter.length === 0}
+                                checked={!eventTypeFilter || eventTypeFilter.length === 0}
                                 onCheckedChange={() => {
-                                    actionColumn?.setFilterValue(undefined)
+                                    eventTypeColumn?.setFilterValue(undefined)
                                 }}
                             >
-                                All Actions
+                                All Event Types
                             </DropdownMenuCheckboxItem>
                             <DropdownMenuSeparator />
-                            {uniqueActions.map((action) => (
+                            {uniqueEventTypes.map((eventType) => (
                                 <DropdownMenuCheckboxItem
-                                    key={action}
-                                    checked={(actionColumn?.getFilterValue() as string[] | undefined)?.includes(action) ?? false}
+                                    key={eventType}
+                                    checked={(eventTypeColumn?.getFilterValue() as string[] | undefined)?.includes(eventType) ?? false}
                                     onCheckedChange={(checked) => {
-                                        const currentFilter = (actionColumn?.getFilterValue() as string[]) || []
+                                        const currentFilter = (eventTypeColumn?.getFilterValue() as string[]) || []
                                         if (checked) {
-                                            actionColumn?.setFilterValue([...currentFilter, action])
+                                            eventTypeColumn?.setFilterValue([...currentFilter, eventType])
                                         } else {
-                                            actionColumn?.setFilterValue(
-                                                currentFilter.filter((v) => v !== action)
+                                            eventTypeColumn?.setFilterValue(
+                                                currentFilter.filter((v) => v !== eventType)
                                             )
                                         }
                                     }}
                                 >
-                                    {action}
+                                    {eventType}
                                 </DropdownMenuCheckboxItem>
                             ))}
                         </DropdownMenuContent>
@@ -666,10 +667,10 @@ export function LogsTable({
                                         <span className="text-muted-foreground">ID:</span>
                                         <span className="font-mono text-xs">{selectedLog.id}</span>
                                     </div>
-                                    {selectedLog.user_id && (
+                                    {selectedLog.userUid && (
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">User ID:</span>
-                                            <span className="font-mono text-xs">{selectedLog.user_id}</span>
+                                            <span className="text-muted-foreground">User UID:</span>
+                                            <span className="font-mono text-xs">{selectedLog.userUid}</span>
                                         </div>
                                     )}
                                     {selectedLog.username && (
@@ -679,47 +680,95 @@ export function LogsTable({
                                         </div>
                                     )}
                                     <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Action:</span>
+                                        <span className="text-muted-foreground">Event Type:</span>
                                         <Badge variant="outline" className="font-mono text-xs">
-                                            {selectedLog.action || "-"}
+                                            {selectedLog.eventType || "-"}
                                         </Badge>
                                     </div>
-                                    {selectedLog.description && (
+                                    {selectedLog.event && (
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Description:</span>
-                                            <span className="wrap-break-word text-right max-w-[60%]">{selectedLog.description}</span>
+                                            <span className="text-muted-foreground">Event:</span>
+                                            <span className="wrap-break-word text-right max-w-[60%]">{selectedLog.event}</span>
                                         </div>
                                     )}
-                                    {selectedLog.ip_address && (
+                                    {selectedLog.details && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Details:</span>
+                                            <span className="wrap-break-word text-right max-w-[60%]">{selectedLog.details}</span>
+                                        </div>
+                                    )}
+                                    {selectedLog.ipAddress && (
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">IP Address:</span>
-                                            <span className="font-mono text-xs">{selectedLog.ip_address}</span>
+                                            <span className="font-mono text-xs">{selectedLog.ipAddress}</span>
+                                        </div>
+                                    )}
+                                    {selectedLog.success !== undefined && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Success:</span>
+                                            <Badge variant={selectedLog.success ? "default" : "destructive"}>
+                                                {selectedLog.success ? "Yes" : "No"}
+                                            </Badge>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            {(selectedLog.old_values || selectedLog.new_values) && (
+                            {(selectedLog.resourceUid || selectedLog.resourceType || selectedLog.merchantId || selectedLog.metadata) && (
                                 <>
                                     <Separator />
 
-                                    {/* Changes Information */}
+                                    {/* Additional Information */}
                                     <div className="flex flex-col gap-3">
-                                        <Label className="text-base font-semibold">Changes</Label>
+                                        <Label className="text-base font-semibold">Additional Information</Label>
                                         <div className="grid gap-2 rounded-lg border p-3">
-                                            {selectedLog.old_values && (
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-muted-foreground font-medium">Old Values:</span>
-                                                    <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-40">
-                                                        {JSON.stringify(selectedLog.old_values, null, 2)}
-                                                    </pre>
+                                            {selectedLog.resourceUid && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Resource UID:</span>
+                                                    <span className="font-mono text-xs">{selectedLog.resourceUid}</span>
                                                 </div>
                                             )}
-                                            {selectedLog.new_values && (
+                                            {selectedLog.resourceType && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Resource Type:</span>
+                                                    <span>{selectedLog.resourceType}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.merchantId && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Merchant ID:</span>
+                                                    <span className="font-mono text-xs">{selectedLog.merchantId}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.userAgent && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">User Agent:</span>
+                                                    <span className="text-xs">{selectedLog.userAgent}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.requestId && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Request ID:</span>
+                                                    <span className="font-mono text-xs">{selectedLog.requestId}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.requestMethod && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Request Method:</span>
+                                                    <span>{selectedLog.requestMethod}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.requestPath && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">Request Path:</span>
+                                                    <span className="font-mono text-xs">{selectedLog.requestPath}</span>
+                                                </div>
+                                            )}
+                                            {selectedLog.metadata && (
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-muted-foreground font-medium">New Values:</span>
+                                                    <span className="text-muted-foreground font-medium">Metadata:</span>
                                                     <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-40">
-                                                        {JSON.stringify(selectedLog.new_values, null, 2)}
+                                                        {selectedLog.metadata}
                                                     </pre>
                                                 </div>
                                             )}
@@ -732,12 +781,18 @@ export function LogsTable({
 
                             {/* Timestamp */}
                             <div className="flex flex-col gap-3">
-                                <Label className="text-base font-semibold">Timestamp</Label>
+                                <Label className="text-base font-semibold">Timestamps</Label>
                                 <div className="grid gap-2 rounded-lg border p-3">
                                     <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Timestamp:</span>
-                                        <span>{formatDate(selectedLog.timestamp)}</span>
+                                        <span className="text-muted-foreground">Created At:</span>
+                                        <span>{formatDate(selectedLog.createdAt)}</span>
                                     </div>
+                                    {selectedLog.updatedAt && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Updated At:</span>
+                                            <span>{formatDate(selectedLog.updatedAt)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -781,10 +836,10 @@ function TableCellViewer({ item, displayText }: { item: AuditLog; displayText?: 
                                 <span className="text-muted-foreground">ID:</span>
                                 <span className="font-mono text-xs">{item.id}</span>
                             </div>
-                            {item.user_id && (
+                            {item.userUid && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">User ID:</span>
-                                    <span className="font-mono text-xs">{item.user_id}</span>
+                                    <span className="text-muted-foreground">User UID:</span>
+                                    <span className="font-mono text-xs">{item.userUid}</span>
                                 </div>
                             )}
                             {item.username && (
@@ -794,47 +849,95 @@ function TableCellViewer({ item, displayText }: { item: AuditLog; displayText?: 
                                 </div>
                             )}
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Action:</span>
+                                <span className="text-muted-foreground">Event Type:</span>
                                 <Badge variant="outline" className="font-mono text-xs">
-                                    {item.action || "-"}
+                                    {item.eventType || "-"}
                                 </Badge>
                             </div>
-                            {item.description && (
+                            {item.event && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Description:</span>
-                                    <span className="wrap-break-word text-right max-w-[60%]">{item.description}</span>
+                                    <span className="text-muted-foreground">Event:</span>
+                                    <span className="wrap-break-word text-right max-w-[60%]">{item.event}</span>
                                 </div>
                             )}
-                            {item.ip_address && (
+                            {item.details && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Details:</span>
+                                    <span className="wrap-break-word text-right max-w-[60%]">{item.details}</span>
+                                </div>
+                            )}
+                            {item.ipAddress && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">IP Address:</span>
-                                    <span className="font-mono text-xs">{item.ip_address}</span>
+                                    <span className="font-mono text-xs">{item.ipAddress}</span>
+                                </div>
+                            )}
+                            {item.success !== undefined && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Success:</span>
+                                    <Badge variant={item.success ? "default" : "destructive"}>
+                                        {item.success ? "Yes" : "No"}
+                                    </Badge>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {(item.old_values || item.new_values) && (
+                    {(item.resourceUid || item.resourceType || item.merchantId || item.metadata) && (
                         <>
                             <Separator />
 
-                            {/* Changes Information */}
+                            {/* Additional Information */}
                             <div className="flex flex-col gap-3">
-                                <Label className="text-base font-semibold">Changes</Label>
+                                <Label className="text-base font-semibold">Additional Information</Label>
                                 <div className="grid gap-2 rounded-lg border p-3">
-                                    {item.old_values && (
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-muted-foreground font-medium">Old Values:</span>
-                                            <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-40">
-                                                {JSON.stringify(item.old_values, null, 2)}
-                                            </pre>
+                                    {item.resourceUid && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Resource UID:</span>
+                                            <span className="font-mono text-xs">{item.resourceUid}</span>
                                         </div>
                                     )}
-                                    {item.new_values && (
+                                    {item.resourceType && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Resource Type:</span>
+                                            <span>{item.resourceType}</span>
+                                        </div>
+                                    )}
+                                    {item.merchantId && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Merchant ID:</span>
+                                            <span className="font-mono text-xs">{item.merchantId}</span>
+                                        </div>
+                                    )}
+                                    {item.userAgent && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">User Agent:</span>
+                                            <span className="text-xs">{item.userAgent}</span>
+                                        </div>
+                                    )}
+                                    {item.requestId && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Request ID:</span>
+                                            <span className="font-mono text-xs">{item.requestId}</span>
+                                        </div>
+                                    )}
+                                    {item.requestMethod && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Request Method:</span>
+                                            <span>{item.requestMethod}</span>
+                                        </div>
+                                    )}
+                                    {item.requestPath && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Request Path:</span>
+                                            <span className="font-mono text-xs">{item.requestPath}</span>
+                                        </div>
+                                    )}
+                                    {item.metadata && (
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-muted-foreground font-medium">New Values:</span>
+                                            <span className="text-muted-foreground font-medium">Metadata:</span>
                                             <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-40">
-                                                {JSON.stringify(item.new_values, null, 2)}
+                                                {item.metadata}
                                             </pre>
                                         </div>
                                     )}
@@ -847,12 +950,18 @@ function TableCellViewer({ item, displayText }: { item: AuditLog; displayText?: 
 
                     {/* Timestamp */}
                     <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Timestamp</Label>
+                        <Label className="text-base font-semibold">Timestamps</Label>
                         <div className="grid gap-2 rounded-lg border p-3">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Timestamp:</span>
-                                <span>{formatDate(item.timestamp)}</span>
+                                <span className="text-muted-foreground">Created At:</span>
+                                <span>{formatDate(item.createdAt)}</span>
                             </div>
+                            {item.updatedAt && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Updated At:</span>
+                                    <span>{formatDate(item.updatedAt)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

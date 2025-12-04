@@ -68,14 +68,14 @@ export async function GET(
 
         // Handle wrapped responses
         const canUpdateData = data.data || data;
-        
+
         // Validate and parse the response
         const parsed = CanUpdateResponseSchema.parse(canUpdateData);
 
         return NextResponse.json(parsed);
     } catch (error) {
         console.error('[Disbursements Can Update API] Error:', error);
-        
+
         if (error instanceof Error && error.name === 'ZodError') {
             return NextResponse.json(
                 { error: 'Invalid can-update response format', details: error.message },

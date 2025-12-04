@@ -70,13 +70,13 @@ export async function GET(
         // Handle both array and wrapped responses
         // Backend returns { status, statusCode, message, data: string[] }
         const historyData = Array.isArray(data) ? data : (data.data || []);
-        
+
         // Transform string array into structured objects for the UI
         // Each string entry becomes a history record with message and timestamp
         // Use crypto.randomUUID() for unique IDs to avoid key collisions after sorting
         const transformedHistory = historyData.map((entry: unknown, index: number) => {
             const uniqueId = `ph-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
+
             if (typeof entry === 'string') {
                 // Try to parse as JSON first (in case it's a JSON string)
                 try {
@@ -93,7 +93,7 @@ export async function GET(
                 } catch {
                     // Not JSON, treat as plain text message
                 }
-                
+
                 // Plain string - convert to object
                 return {
                     id: uniqueId,
@@ -102,7 +102,7 @@ export async function GET(
                     timestamp: new Date().toISOString(),
                 };
             }
-            
+
             // Already an object - ensure it has required fields
             if (typeof entry === 'object' && entry !== null) {
                 const obj = entry as Record<string, unknown>;
@@ -113,7 +113,7 @@ export async function GET(
                     ...obj,
                 };
             }
-            
+
             // Fallback
             return {
                 id: uniqueId,

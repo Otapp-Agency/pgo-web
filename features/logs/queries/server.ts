@@ -33,9 +33,9 @@ async function fetchAuditLogsListServer(
     const per_page = params.per_page ?? 15;
     const queryParams = new URLSearchParams();
     queryParams.set('page', page.toString());
-    queryParams.set('per_page', per_page.toString());
+    queryParams.set('size', per_page.toString()); // Backend uses 'size' instead of 'per_page'
 
-    // Add other filter params if present
+    // Add other filter params if present (already in camelCase format)
     if (params) {
         Object.entries(params).forEach(([key, value]) => {
             if (key === 'sort' && Array.isArray(value) && value.length > 0) {
