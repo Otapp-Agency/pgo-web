@@ -113,22 +113,20 @@ export function StatsSection() {
 
     // Fetch all three endpoints in parallel
     const queries = useQueries({
-        queries: queryParams
-            ? [
-                {
-                    ...disbursementVolumeStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-                {
-                    ...disbursementStatusStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-                {
-                    ...disbursementGatewayStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-            ]
-            : [],
+        queries: [
+            {
+                ...disbursementVolumeStatsQueryOptions(queryParams || { startDate: '', endDate: '' }),
+                enabled: !!queryParams,
+            },
+            {
+                ...disbursementStatusStatsQueryOptions(queryParams || { startDate: '', endDate: '' }),
+                enabled: !!queryParams,
+            },
+            {
+                ...disbursementGatewayStatsQueryOptions(queryParams || { startDate: '', endDate: '' }),
+                enabled: !!queryParams,
+            },
+        ],
     });
 
     const [volumeQuery, statusQuery, gatewayQuery] = queries;

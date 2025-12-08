@@ -237,11 +237,11 @@ export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps)
                                                         checked={field.value?.includes(method.value)}
                                                         onCheckedChange={(checked) => {
                                                             return checked
-                                                                ? field.onChange([...field.value, method.value])
+                                                                ? field.onChange([...(field.value || []), method.value])
                                                                 : field.onChange(
                                                                     field.value?.filter(
                                                                         (value) => value !== method.value
-                                                                    )
+                                                                    ) || []
                                                                 );
                                                         }}
                                                     />

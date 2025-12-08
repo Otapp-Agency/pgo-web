@@ -111,7 +111,7 @@ export default function DisbursementProcessingHistoryTab({ disbursementId }: Dis
                                             Attempt {entry.attemptNumber}
                                         </span>
                                     )}
-                                    {entry.retryCount !== undefined && entry.retryCount > 0 && (
+                                    {entry.retryCount != null && entry.retryCount > 0 && (
                                         <span className="ml-2 text-xs font-normal text-muted-foreground">
                                             Retry {entry.retryCount}
                                         </span>

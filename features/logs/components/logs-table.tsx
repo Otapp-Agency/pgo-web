@@ -374,7 +374,7 @@ export function LogsTable({
         meta: {
             openDetailDrawer,
         },
-        getRowId: (row) => row.id,
+        getRowId: (row) => String(row.id),
         enableRowSelection: true,
         onRowSelectionChange: setRowSelection,
         onSortingChange: (updater) => {
