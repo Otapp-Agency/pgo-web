@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
         // Handle Zod validation errors
         if (error instanceof z.ZodError) {
             return NextResponse.json(
-                { error: 'Invalid data format', details: error.errors },
+                { error: 'Invalid data format', details: error },
                 { status: 500 }
             );
         }

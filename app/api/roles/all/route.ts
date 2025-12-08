@@ -64,15 +64,15 @@ export async function GET() {
         // Handle Zod validation errors
         if (error instanceof z.ZodError) {
             return NextResponse.json(
-                { error: 'Invalid data format', details: error.errors },
+                { error: 'Invalid data format', details: error.message },
+                { status: 500 }
+            );
+        } else {
+            return NextResponse.json(
+                { error: 'Internal server error' },
                 { status: 500 }
             );
         }
-
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
     }
 }
 

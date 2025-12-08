@@ -2,6 +2,9 @@ import { RoleSchema, PaginatedRoleResponse, RoleListParams } from '../types';
 import { z } from 'zod';
 import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
 
+// Re-export types for convenience
+export type { RoleListParams };
+
 /**
  * Query keys factory for roles
  * Safe to import in both client and server components
