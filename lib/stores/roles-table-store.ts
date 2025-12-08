@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ColumnFiltersState, SortingState, VisibilityState } from '@tanstack/react-table';
+import { PAGINATION } from '@/lib/config/constants';
 
-interface PaymentGatewaysTableState {
+interface RolesTableState {
     pagination: {
-        pageIndex: number;
+        pageIndex: number; // 0-based page index for TanStack React Table
         pageSize: number;
     };
     sorting: SortingState;
@@ -13,7 +14,7 @@ interface PaymentGatewaysTableState {
     rowSelection: Record<string, boolean>;
 }
 
-interface PaymentGatewaysTableActions {
+interface RolesTableActions {
     setPagination: (pagination: { pageIndex: number; pageSize: number }) => void;
     setSorting: (sorting: SortingState | ((prev: SortingState) => SortingState)) => void;
     setColumnFilters: (filters: ColumnFiltersState | ((prev: ColumnFiltersState) => ColumnFiltersState)) => void;
@@ -22,10 +23,10 @@ interface PaymentGatewaysTableActions {
     resetTableState: () => void;
 }
 
-const initialState: PaymentGatewaysTableState = {
+const initialState: RolesTableState = {
     pagination: {
-        pageIndex: 0,
-        pageSize: 15,
+        pageIndex: 0, // 0-based for TanStack React Table (first page)
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE,
     },
     sorting: [],
     columnFilters: [],
@@ -33,7 +34,7 @@ const initialState: PaymentGatewaysTableState = {
     rowSelection: {},
 };
 
-export const usePaymentGatewaysTableStore = create<PaymentGatewaysTableState & PaymentGatewaysTableActions>()(
+export const useRolesTableStore = create<RolesTableState & RolesTableActions>()(
     persist(
         (set) => ({
             ...initialState,
@@ -59,7 +60,7 @@ export const usePaymentGatewaysTableStore = create<PaymentGatewaysTableState & P
             resetTableState: () => set(initialState),
         }),
         {
-            name: 'payment-gateways-table-state',
+            name: 'roles-table-state',
             partialize: (state) => ({
                 // Persist everything except rowSelection (reset on refresh)
                 pagination: state.pagination,
@@ -70,17 +71,4 @@ export const usePaymentGatewaysTableStore = create<PaymentGatewaysTableState & P
         }
     )
 );
-
-
-
-
-
-
-
-
-
-
-
-
-
 

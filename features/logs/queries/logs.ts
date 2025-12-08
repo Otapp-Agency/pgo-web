@@ -173,7 +173,7 @@ export function auditLogDetailQueryOptions(auditLogId: string | number) {
     const url = `/api/logs/${auditLogId}`;
 
     return {
-        queryKey: auditLogsKeys.detail(auditLogId),
+        queryKey: auditLogsKeys.detail(auditLogId.toString()),
         queryFn: async () => {
             let fullUrl: string;
             if (typeof window !== 'undefined') {

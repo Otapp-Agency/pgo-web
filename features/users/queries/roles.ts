@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RoleSchema } from '@/features/roles/types';
 
 /**
  * Query keys factory for roles
@@ -11,10 +12,10 @@ export const rolesKeys = {
 
 /**
  * Client-side query options for roles list
- * Returns all available roles as a sorted array of strings
+ * Returns all available roles as a sorted array of strings (role names)
  */
 export function rolesListQueryOptions() {
-    const url = `/api/roles`;
+    const url = `/api/roles/all`;
 
     return {
         queryKey: rolesKeys.list(),
@@ -47,10 +48,13 @@ export function rolesListQueryOptions() {
 
             const responseData = await response.json();
 
-            // Validate that response is an array of strings
-            const parsed = z.array(z.string()).parse(responseData);
+            // Validate that response is an array of Role objects
+            const roles = z.array(RoleSchema).parse(responseData);
 
-            return parsed;
+            // Extract role names and return as sorted array of strings
+            const roleNames = roles.map(role => role.name).sort();
+
+            return roleNames;
         },
         staleTime: 5 * 60 * 1000, // 5 minutes - roles don't change frequently
     };

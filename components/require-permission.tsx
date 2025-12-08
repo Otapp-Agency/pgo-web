@@ -47,19 +47,13 @@ export function RequirePermission({
   fallback,
   children,
 }: RequirePermissionProps) {
-  let hasAccess = false
 
-  if (permission) {
-    hasAccess = usePermission(roles, permission)
-  } else if (permissions && permissions.length > 0) {
-    if (requireAll) {
-      hasAccess = useAllPermissions(roles, permissions)
-    } else {
-      hasAccess = useAnyPermission(roles, permissions)
-    }
-  }
+  // Call all hooks unconditionally to satisfy React Hook rules
+  const singlePermissionAccess = usePermission(roles, permission || '')
+  const anyPermissionAccess = useAnyPermission(roles, permissions || [])
+  const allPermissionsAccess = useAllPermissions(roles, permissions || [])
 
-  if (!hasAccess) {
+  if (!singlePermissionAccess && !anyPermissionAccess && !allPermissionsAccess) {
     if (showError) {
       return (
         <Alert variant="destructive">

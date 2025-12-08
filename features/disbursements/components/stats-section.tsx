@@ -111,24 +111,29 @@ export function StatsSection() {
         };
     }, [dateRange]);
 
+    // Default params for disabled queries (won't be used since enabled is false)
+    const defaultParams: DisbursementStatsParams = {
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+    };
+
     // Fetch all three endpoints in parallel
+    // Always provide 3 queries to satisfy TypeScript tuple type requirement
     const queries = useQueries({
-        queries: queryParams
-            ? [
-                {
-                    ...disbursementVolumeStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-                {
-                    ...disbursementStatusStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-                {
-                    ...disbursementGatewayStatsQueryOptions(queryParams),
-                    enabled: !!queryParams,
-                },
-            ]
-            : [],
+        queries: [
+            {
+                ...disbursementVolumeStatsQueryOptions(queryParams || defaultParams),
+                enabled: !!queryParams,
+            },
+            {
+                ...disbursementStatusStatsQueryOptions(queryParams || defaultParams),
+                enabled: !!queryParams,
+            },
+            {
+                ...disbursementGatewayStatsQueryOptions(queryParams || defaultParams),
+                enabled: !!queryParams,
+            },
+        ],
     });
 
     const [volumeQuery, statusQuery, gatewayQuery] = queries;

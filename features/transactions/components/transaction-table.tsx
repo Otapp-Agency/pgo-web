@@ -89,6 +89,7 @@ import {
 } from "@/components/ui/tooltip"
 import { TableSkeletonRows } from "@/components/ui/table-skeleton"
 import { TRANSACTIONS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
+import Link from "next/link"
 
 // Helper function to format amount with currency
 function formatAmount(amount: string, currency: string): string {
@@ -523,7 +524,12 @@ const columns: ColumnDef<Transaction>[] = [
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="max-w-[180px]">
-                                <TableCellViewer item={row.original} displayText={truncatedId} />
+                                <Link
+                                    href={`/transactions/${transactionId}`}
+                                    className="text-foreground hover:underline font-mono text-xs"
+                                >
+                                    {truncatedId}
+                                </Link>
                             </div>
                         </TooltipTrigger>
                         {transactionId !== "-" && (
@@ -950,194 +956,194 @@ export function TransactionTable({
 }
 
 
-function TableCellViewer({ item, displayText }: { item: Transaction; displayText?: string }) {
-    const isMobile = useIsMobile()
-    const textToShow = displayText || item.merchantTransactionId || "-"
+// function TableCellViewer({ item, displayText }: { item: Transaction; displayText?: string }) {
+//     const isMobile = useIsMobile()
+//     const textToShow = displayText || item.merchantTransactionId || "-"
 
-    return (
-        <Drawer direction={isMobile ? "bottom" : "right"}>
-            <DrawerTrigger asChild>
-                <Button variant="link" className="text-foreground w-fit px-0 text-left font-mono text-xs">
-                    {textToShow}
-                </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-                <DrawerHeader className="gap-1">
-                    <DrawerTitle>Transaction Details</DrawerTitle>
-                    <DrawerDescription>
-                        Transaction ID: {item.uid}
-                    </DrawerDescription>
-                </DrawerHeader>
-                <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-                    {/* Transaction IDs Section */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Transaction IDs</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Internal:</span>
-                                <span className="font-mono text-xs">{item.internalTransactionId}</span>
-                            </div>
-                            {item.externalTransactionId && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">External:</span>
-                                    <span className="font-mono text-xs">{item.externalTransactionId}</span>
-                                </div>
-                            )}
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Merchant:</span>
-                                <span className="font-mono text-xs">{item.merchantTransactionId}</span>
-                            </div>
-                            {item.pspTransactionId && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">PSP:</span>
-                                    <span className="font-mono text-xs">{item.pspTransactionId}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+//     return (
+//         <Drawer direction={isMobile ? "bottom" : "right"}>
+//             <DrawerTrigger asChild>
+//                 <Button variant="link" className="text-foreground w-fit px-0 text-left font-mono text-xs">
+//                     {textToShow}
+//                 </Button>
+//             </DrawerTrigger>
+//             <DrawerContent>
+//                 <DrawerHeader className="gap-1">
+//                     <DrawerTitle>Transaction Details</DrawerTitle>
+//                     <DrawerDescription>
+//                         Transaction ID: {item.uid}
+//                     </DrawerDescription>
+//                 </DrawerHeader>
+//                 <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+//                     {/* Transaction IDs Section */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Transaction IDs</Label>
+//                         <div className="grid gap-2 rounded-lg border p-3">
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Internal:</span>
+//                                 <span className="font-mono text-xs">{item.internalTransactionId}</span>
+//                             </div>
+//                             {item.externalTransactionId && (
+//                                 <div className="flex justify-between">
+//                                     <span className="text-muted-foreground">External:</span>
+//                                     <span className="font-mono text-xs">{item.externalTransactionId}</span>
+//                                 </div>
+//                             )}
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Merchant:</span>
+//                                 <span className="font-mono text-xs">{item.merchantTransactionId}</span>
+//                             </div>
+//                             {item.pspTransactionId && (
+//                                 <div className="flex justify-between">
+//                                     <span className="text-muted-foreground">PSP:</span>
+//                                     <span className="font-mono text-xs">{item.pspTransactionId}</span>
+//                                 </div>
+//                             )}
+//                         </div>
+//                     </div>
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* Amount and Currency */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Amount</Label>
-                        <div className="text-2xl font-bold">
-                            {formatAmount(item.amount, item.currency)}
-                        </div>
-                    </div>
+//                     {/* Amount and Currency */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Amount</Label>
+//                         <div className="text-2xl font-bold">
+//                             {formatAmount(item.amount, item.currency)}
+//                         </div>
+//                     </div>
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* Customer Information */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Customer Information</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Name:</span>
-                                <span>{item.customerName || "-"}</span>
-                            </div>
-                            {item.customerIdentifier && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Identifier:</span>
-                                    <span>{item.customerIdentifier}</span>
-                                </div>
-                            )}
-                            {item.paymentMethod && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Payment Method:</span>
-                                    <span>{item.paymentMethod}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+//                     {/* Customer Information */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Customer Information</Label>
+//                         <div className="grid gap-2 rounded-lg border p-3">
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Name:</span>
+//                                 <span>{item.customerName || "-"}</span>
+//                             </div>
+//                             {item.customerIdentifier && (
+//                                 <div className="flex justify-between">
+//                                     <span className="text-muted-foreground">Identifier:</span>
+//                                     <span>{item.customerIdentifier}</span>
+//                                 </div>
+//                             )}
+//                             {item.paymentMethod && (
+//                                 <div className="flex justify-between">
+//                                     <span className="text-muted-foreground">Payment Method:</span>
+//                                     <span>{item.paymentMethod}</span>
+//                                 </div>
+//                             )}
+//                         </div>
+//                     </div>
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* Status */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Status</Label>
-                        <Badge
-                            variant="outline"
-                            className="w-fit px-3 py-1"
-                            style={{
-                                backgroundColor: `${item.colorCode}20`,
-                                borderColor: item.colorCode,
-                                color: item.colorCode,
-                            }}
-                        >
-                            {item.status === "SUCCESS" || item.status === "COMPLETED" ? (
-                                <IconCircleCheckFilled className="mr-2 size-4" />
-                            ) : item.status === "FAILED" ? (
-                                <span className="mr-2">✕</span>
-                            ) : (
-                                <IconLoader className="mr-2 size-4" />
-                            )}
-                            {item.status}
-                        </Badge>
-                    </div>
+//                     {/* Status */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Status</Label>
+//                         <Badge
+//                             variant="outline"
+//                             className="w-fit px-3 py-1"
+//                             style={{
+//                                 backgroundColor: `${item.colorCode}20`,
+//                                 borderColor: item.colorCode,
+//                                 color: item.colorCode,
+//                             }}
+//                         >
+//                             {item.status === "SUCCESS" || item.status === "COMPLETED" ? (
+//                                 <IconCircleCheckFilled className="mr-2 size-4" />
+//                             ) : item.status === "FAILED" ? (
+//                                 <span className="mr-2">✕</span>
+//                             ) : (
+//                                 <IconLoader className="mr-2 size-4" />
+//                             )}
+//                             {item.status}
+//                         </Badge>
+//                     </div>
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* Merchant Information */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Merchant Information</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Merchant:</span>
-                                <span>{item.merchantName}</span>
-                            </div>
-                            {item.submerchantName && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Submerchant:</span>
-                                    <span>{item.submerchantName}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+//                     {/* Merchant Information */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Merchant Information</Label>
+//                         <div className="grid gap-2 rounded-lg border p-3">
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Merchant:</span>
+//                                 <span>{item.merchantName}</span>
+//                             </div>
+//                             {item.submerchantName && (
+//                                 <div className="flex justify-between">
+//                                     <span className="text-muted-foreground">Submerchant:</span>
+//                                     <span>{item.submerchantName}</span>
+//                                 </div>
+//                             )}
+//                         </div>
+//                     </div>
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* PGO Information */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Payment Gateway</Label>
-                        <div className="rounded-lg border p-3">
-                            <div className="font-medium">{item.pgoName}</div>
-                        </div>
-                    </div>
+//                     {/* PGO Information */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Payment Gateway</Label>
+//                         <div className="rounded-lg border p-3">
+//                             <div className="font-medium">{item.pgoName}</div>
+//                         </div>
+//                     </div>
 
-                    {/* Error Information */}
-                    {(item.status === "FAILED" || item.errorCode || item.errorMessage || item.description) && (
-                        <>
-                            <Separator />
-                            <div className="flex flex-col gap-3">
-                                <Label className="text-base font-semibold text-destructive">Error Information</Label>
-                                <div className="grid gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                                    {item.errorCode && (
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Error Code:</span>
-                                            <span className="font-medium text-destructive">{item.errorCode}</span>
-                                        </div>
-                                    )}
-                                    {item.errorMessage && (
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-muted-foreground">Error Message:</span>
-                                            <span className="text-destructive">{item.errorMessage}</span>
-                                        </div>
-                                    )}
-                                    {item.description && (
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-muted-foreground">Description:</span>
-                                            <span>{item.description}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    )}
+//                     {/* Error Information */}
+//                     {(item.status === "FAILED" || item.errorCode || item.errorMessage || item.description) && (
+//                         <>
+//                             <Separator />
+//                             <div className="flex flex-col gap-3">
+//                                 <Label className="text-base font-semibold text-destructive">Error Information</Label>
+//                                 <div className="grid gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+//                                     {item.errorCode && (
+//                                         <div className="flex justify-between">
+//                                             <span className="text-muted-foreground">Error Code:</span>
+//                                             <span className="font-medium text-destructive">{item.errorCode}</span>
+//                                         </div>
+//                                     )}
+//                                     {item.errorMessage && (
+//                                         <div className="flex flex-col gap-1">
+//                                             <span className="text-muted-foreground">Error Message:</span>
+//                                             <span className="text-destructive">{item.errorMessage}</span>
+//                                         </div>
+//                                     )}
+//                                     {item.description && (
+//                                         <div className="flex flex-col gap-1">
+//                                             <span className="text-muted-foreground">Description:</span>
+//                                             <span>{item.description}</span>
+//                                         </div>
+//                                     )}
+//                                 </div>
+//                             </div>
+//                         </>
+//                     )}
 
-                    <Separator />
+//                     <Separator />
 
-                    {/* Timestamps */}
-                    <div className="flex flex-col gap-3">
-                        <Label className="text-base font-semibold">Timestamps</Label>
-                        <div className="grid gap-2 rounded-lg border p-3">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Created:</span>
-                                <span>{formatDate(item.createdAt)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Updated:</span>
-                                <span>{formatDate(item.updatedAt)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <DrawerFooter>
-                    <DrawerClose asChild>
-                        <Button variant="outline">Close</Button>
-                    </DrawerClose>
-                </DrawerFooter>
-            </DrawerContent>
-        </Drawer>
-    )
-}
+//                     {/* Timestamps */}
+//                     <div className="flex flex-col gap-3">
+//                         <Label className="text-base font-semibold">Timestamps</Label>
+//                         <div className="grid gap-2 rounded-lg border p-3">
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Created:</span>
+//                                 <span>{formatDate(item.createdAt)}</span>
+//                             </div>
+//                             <div className="flex justify-between">
+//                                 <span className="text-muted-foreground">Updated:</span>
+//                                 <span>{formatDate(item.updatedAt)}</span>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+//                 <DrawerFooter>
+//                     <DrawerClose asChild>
+//                         <Button variant="outline">Close</Button>
+//                     </DrawerClose>
+//                 </DrawerFooter>
+//             </DrawerContent>
+//         </Drawer>
+//     )
+// }

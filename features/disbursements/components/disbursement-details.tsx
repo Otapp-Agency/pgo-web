@@ -106,4 +106,3 @@ export default function DisbursementDetails({ disbursementId }: DisbursementDeta
         </div>
     );
 }
-

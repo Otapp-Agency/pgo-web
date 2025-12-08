@@ -72,5 +72,14 @@ export const PAYMENT_GATEWAYS_TABLE_COLUMNS: TableColumnSkeleton[] = [
     { width: 'w-8', type: 'button' }, // Actions
 ];
 
+export const ROLES_TABLE_COLUMNS: TableColumnSkeleton[] = [
+    { width: 'w-8', type: 'checkbox', align: 'center' },
+    { width: '', type: 'text' }, // ID
+    { width: '', type: 'badge' }, // Name
+    { width: '', type: 'text' }, // Display Name
+    { width: '', type: 'text' }, // Description
+    { width: 'w-8', type: 'button' }, // Actions
+];
+
 
 

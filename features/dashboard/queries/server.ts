@@ -12,19 +12,41 @@ import { getQueryClient } from '@/lib/server-query-client';
 /**
  * Transform the nested API response to the expected flat structure
  */
-function transformDashboardStatsResponse(apiResponse: any) {
-    const overview = apiResponse.overview || {};
+function transformDashboardStatsResponse(apiResponse: unknown) {
+    type ApiResponse = {
+        overview?: {
+            transactions?: {
+                total?: number;
+                successful?: number;
+                failed?: number;
+                amountsByCurrency?: Record<string, string>;
+                successfulAmountsByCurrency?: Record<string, string>;
+            };
+            disbursements?: {
+                total?: number;
+                successful?: number;
+                failed?: number;
+                amountsByCurrency?: Record<string, string>;
+                successfulAmountsByCurrency?: Record<string, string>;
+            };
+        };
+        breakdowns?: {
+            byCurrency?: Record<string, unknown>;
+        };
+        recentActivity?: unknown;
+    };
+
+    const response = apiResponse as ApiResponse;
+    const overview = response.overview || {};
     const transactions = overview.transactions || {};
     const disbursements = overview.disbursements || {};
-    const breakdowns = apiResponse.breakdowns || {};
-    const byCurrency = breakdowns.byCurrency || {};
 
     // Get currency from amountsByCurrency (default to TZS)
-    const currency = transactions.amountsByCurrency 
+    const currency = transactions.amountsByCurrency
         ? Object.keys(transactions.amountsByCurrency)[0] || 'TZS'
         : disbursements.amountsByCurrency
-        ? Object.keys(disbursements.amountsByCurrency)[0] || 'TZS'
-        : 'TZS';
+            ? Object.keys(disbursements.amountsByCurrency)[0] || 'TZS'
+            : 'TZS';
 
     // Parse amounts from strings to numbers
     const parseAmount = (amount: string | number | undefined): number => {
@@ -60,7 +82,7 @@ function transformDashboardStatsResponse(apiResponse: any) {
         successful_disbursements_value: parseAmount(successfulDisbursementAmounts[currency]),
         currency: currency,
         // Preserve recentActivity from API response
-        recentActivity: apiResponse.recentActivity || undefined,
+        recentActivity: response.recentActivity || undefined,
     };
 }
 

@@ -418,7 +418,7 @@ export const ProcessingHistoryEntrySchema = z.object({
   retryCount: z.number().optional().nullable(),
   attemptNumber: z.number().optional().nullable(),
   processingTime: z.number().optional().nullable(),
-  metadata: z.record(z.unknown()).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 export type ProcessingHistoryEntry = z.infer<typeof ProcessingHistoryEntrySchema>;
@@ -436,7 +436,7 @@ export const AuditTrailEntrySchema = z.object({
   reason: z.string().optional().nullable(),
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
-  metadata: z.record(z.unknown()).optional().nullable(),
+  metadata: z.record(z.string(), z.string().optional()).optional().nullable(),
 });
 
 export type AuditTrailEntry = z.infer<typeof AuditTrailEntrySchema>;

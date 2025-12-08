@@ -3,9 +3,34 @@ import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 
 /**
+ * Type definition for the dashboard stats API response
+ */
+interface DashboardStatsApiResponse {
+    overview?: {
+        transactions?: {
+            total?: number;
+            successful?: number;
+            failed?: number;
+            amountsByCurrency?: Record<string, string | number>;
+            successfulAmountsByCurrency?: Record<string, string | number>;
+        };
+        disbursements?: {
+            total?: number;
+            successful?: number;
+            amountsByCurrency?: Record<string, string | number>;
+            successfulAmountsByCurrency?: Record<string, string | number>;
+        };
+    };
+    breakdowns?: {
+        byCurrency?: Record<string, unknown>;
+    };
+    recentActivity?: unknown;
+}
+
+/**
  * Transform the nested API response to the expected flat structure
  */
-function transformDashboardStatsResponse(apiResponse: any) {
+function transformDashboardStatsResponse(apiResponse: DashboardStatsApiResponse) {
     const overview = apiResponse.overview || {};
     const transactions = overview.transactions || {};
     const disbursements = overview.disbursements || {};
@@ -13,11 +38,11 @@ function transformDashboardStatsResponse(apiResponse: any) {
     const byCurrency = breakdowns.byCurrency || {};
 
     // Get currency from amountsByCurrency (default to TZS)
-    const currency = transactions.amountsByCurrency 
+    const currency = transactions.amountsByCurrency
         ? Object.keys(transactions.amountsByCurrency)[0] || 'TZS'
         : disbursements.amountsByCurrency
-        ? Object.keys(disbursements.amountsByCurrency)[0] || 'TZS'
-        : 'TZS';
+            ? Object.keys(disbursements.amountsByCurrency)[0] || 'TZS'
+            : 'TZS';
 
     // Parse amounts from strings to numbers
     const parseAmount = (amount: string | number | undefined): number => {
@@ -119,7 +144,7 @@ export async function GET(request: NextRequest) {
         // Backend API returns nested structure with overview, breakdowns, recentActivity, etc.
         // Transform it to the expected flat structure while preserving recentActivity
         let statsData;
-        
+
         if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
             // Response wrapped in { data: {...} }
             // Transform the nested structure

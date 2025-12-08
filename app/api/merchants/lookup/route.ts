@@ -3,6 +3,17 @@ import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 
 /**
+ * Type definition for merchant lookup API response
+ */
+interface MerchantLookupApiResponse {
+    id?: string | number;
+    uid?: string;
+    name?: string;
+    code?: string;
+    status?: string | null;
+}
+
+/**
  * GET /api/merchants/lookup - Lookup merchants for autocomplete/search
  */
 export async function GET(request: NextRequest) {
@@ -59,7 +70,7 @@ export async function GET(request: NextRequest) {
 
         // Transform response to frontend format
         const merchants = data.data || [];
-        const transformedMerchants = merchants.map((merchant: any) => ({
+        const transformedMerchants = merchants.map((merchant: MerchantLookupApiResponse) => ({
             id: merchant.id?.toString() || merchant.id,
             uid: merchant.uid,
             name: merchant.name,

@@ -3,6 +3,27 @@ import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 
 /**
+ * Type definition for sub-merchant API response
+ */
+interface SubMerchantApiResponse {
+    id?: string | number;
+    uid?: string;
+    code?: string;
+    name?: string;
+    merchantType?: string;
+    merchant_type?: string;
+    status?: string;
+    kycVerified?: boolean;
+    kyc_verified?: boolean;
+    contactEmail?: string;
+    contact_email?: string;
+    createdAt?: string;
+    created_at?: string;
+    updatedAt?: string;
+    updated_at?: string;
+}
+
+/**
  * GET /api/merchants/[uid]/sub-merchants - Get sub-merchants for a merchant
  */
 export async function GET(
@@ -52,7 +73,7 @@ export async function GET(
 
         // Transform response to frontend format
         const subMerchants = data.data || [];
-        const transformedSubMerchants = subMerchants.map((merchant: any) => ({
+        const transformedSubMerchants = subMerchants.map((merchant: SubMerchantApiResponse) => ({
             id: merchant.id?.toString() || merchant.id,
             uid: merchant.uid,
             code: merchant.code,

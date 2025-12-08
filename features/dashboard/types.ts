@@ -55,7 +55,7 @@ const DashboardStatsApiResponseSchema = z.object({
     recentActivity: RecentActivitySchema,
 }).passthrough(); // Allow additional fields like context, trends
 
-type DashboardStatsApiResponse = z.infer<typeof DashboardStatsApiResponseSchema>;
+export type DashboardStatsApiResponse = z.infer<typeof DashboardStatsApiResponseSchema>;
 
 /**
  * Transform API response to flat DashboardStats format

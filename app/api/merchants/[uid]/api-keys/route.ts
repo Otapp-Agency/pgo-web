@@ -52,7 +52,7 @@ export async function GET(
 
         // Transform response to frontend format
         const apiKeys = data.data || [];
-        const transformedApiKeys = apiKeys.map((key: any) => ({
+        const transformedApiKeys = apiKeys.map((key: { apiKey: string; secretKey: string | null; expiresAt: string | null; status: string }) => ({
             apiKey: key.apiKey,
             secretKey: key.secretKey || null, // Only present at creation time
             expiresAt: key.expiresAt || null,

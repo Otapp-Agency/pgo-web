@@ -4,6 +4,44 @@ import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 import { CreateBankAccountRequestSchema } from '@/lib/definitions';
 
 /**
+ * Type definition for bank account API response
+ */
+interface BankAccountApiResponse {
+    id?: string;
+    uid?: string;
+    bankName?: string;
+    bank_name?: string;
+    accountName?: string;
+    account_name?: string;
+    accountNumber?: string;
+    account_number?: string;
+    bankCode?: string | null;
+    bank_code?: string | null;
+    branchCode?: string | null;
+    branch_code?: string | null;
+    accountType?: string | null;
+    account_type?: string | null;
+    swiftCode?: string | null;
+    swift_code?: string | null;
+    iban?: string | null;
+    bankAddress?: string | null;
+    bank_address?: string | null;
+    currency?: string;
+    status?: string;
+    isActive?: boolean;
+    is_active?: boolean;
+    active?: boolean;
+    isPrimary?: boolean;
+    is_primary?: boolean;
+    primary?: boolean;
+    notes?: string | null;
+    createdAt?: string | null;
+    created_at?: string | null;
+    updatedAt?: string | null;
+    updated_at?: string | null;
+}
+
+/**
  * GET /api/merchants/[uid]/bank-accounts - Get merchant bank accounts
  * Returns settlement bank accounts configured for the merchant
  */
@@ -53,40 +91,7 @@ export async function GET(
         // Transform response - handle both array and object with data property
         const bankAccountsRaw = Array.isArray(data) ? data : (data.data || []);
 
-        const bankAccounts = bankAccountsRaw.map((account: {
-            id?: string;
-            uid?: string;
-            bankName?: string;
-            bank_name?: string;
-            accountName?: string;
-            account_name?: string;
-            accountNumber?: string;
-            account_number?: string;
-            bankCode?: string | null;
-            bank_code?: string | null;
-            branchCode?: string | null;
-            branch_code?: string | null;
-            accountType?: string | null;
-            account_type?: string | null;
-            swiftCode?: string | null;
-            swift_code?: string | null;
-            iban?: string | null;
-            bankAddress?: string | null;
-            bank_address?: string | null;
-            currency?: string;
-            status?: string;
-            isActive?: boolean;
-            is_active?: boolean;
-            active?: boolean;
-            isPrimary?: boolean;
-            is_primary?: boolean;
-            primary?: boolean;
-            notes?: string | null;
-            createdAt?: string | null;
-            created_at?: string | null;
-            updatedAt?: string | null;
-            updated_at?: string | null;
-        }) => ({
+        const bankAccounts = bankAccountsRaw.map((account: BankAccountApiResponse) => ({
             id: account.id ?? account.uid ?? '',
             uid: account.uid ?? account.id ?? '',
             bank_name: account.bankName ?? account.bank_name ?? '',
@@ -175,8 +180,8 @@ export async function POST(
 
         // Transform response from backend format to frontend format
         const bankAccountsRaw = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []);
-        
-        const transformedBankAccounts = bankAccountsRaw.map((account: any) => ({
+
+        const transformedBankAccounts = bankAccountsRaw.map((account: BankAccountApiResponse) => ({
             id: account.id || account.uid,
             uid: account.uid || account.id,
             bank_name: account.bankName || account.bank_name || '',
@@ -203,7 +208,7 @@ export async function POST(
         });
     } catch (error) {
         console.error('Error saving bank account:', error);
-        
+
         // Handle validation errors
         if (error instanceof Error && error.name === 'ZodError') {
             return NextResponse.json(

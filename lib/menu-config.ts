@@ -48,6 +48,18 @@ export const menuConfig = {
             url: "/users",
             icon: "IconUsers",
             permission: PERMISSIONS.USERS.VIEW,
+            subItems: [
+                {
+                    title: "Users",
+                    url: "/users",
+                    icon: "IconUsers",
+                },
+                {
+                    title: "Roles",
+                    url: "/roles",
+                    icon: "IconUsers",
+                },
+            ],
         },
         {
             title: "Disbursements",
