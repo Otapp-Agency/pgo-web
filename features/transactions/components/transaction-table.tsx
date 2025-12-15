@@ -91,6 +91,12 @@ import { TableSkeletonRows } from "@/components/ui/table-skeleton"
 import { TRANSACTIONS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
 import Link from "next/link"
 
+// Context for sharing drawer state
+const TransactionDrawerContext = React.createContext<{
+    openTransactionUid: string | null
+    setOpenTransactionUid: (uid: string | null) => void
+} | null>(null)
+
 // Helper function to format amount with currency
 function formatAmount(amount: string, currency: string): string {
     const numAmount = parseFloat(amount)
@@ -174,18 +180,109 @@ function canCancel(status: string): boolean {
     return CANCEL_STATUSES.includes(status.toUpperCase())
 }
 
+// Transaction ID cell component
+function TransactionIdCell({ transaction }: { transaction: Transaction }) {
+    // CRITICAL: Backend requires numeric Long ID, not UID
+    // Check if the id field contains a numeric ID (all digits)
+    const idValue = transaction.id || "";
+    const isNumericId = /^\d+$/.test(idValue);
+
+    // Use numeric ID for the link (backend expects numeric Long ID in URL)
+    // Display merchantTransactionId for user-friendly display
+    const numericId = isNumericId ? idValue : null;
+    const displayId = transaction.merchantTransactionId || transaction.internalTransactionId || idValue || "-"
+    const truncatedDisplayId = displayId !== "-" ? truncateId(displayId, 20) : "-"
+    const drawerContext = React.useContext(TransactionDrawerContext)
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault()
+        if (drawerContext) {
+            drawerContext.setOpenTransactionUid(transaction.uid)
+        }
+    }
+
+    // If we don't have a numeric ID, show the display ID but don't make it clickable
+    // This prevents the error from occurring
+    // NOTE: This happens when the backend returns a UID in the 'id' field instead of a numeric ID
+    // The backend should return the numeric database ID in the 'id' field for transaction list responses
+    if (!numericId) {
+        if (process.env.NODE_ENV === 'development') {
+            console.warn(
+                'Transaction list returned non-numeric ID in id field. Backend should return numeric database ID.',
+                { id: idValue, displayId, transaction }
+            );
+        }
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="max-w-[180px]">
+                            <span className="font-mono text-xs text-muted-foreground">
+                                {truncatedDisplayId}
+                            </span>
+                        </div>
+                    </TooltipTrigger>
+                    {displayId !== "-" && (
+                        <TooltipContent>
+                            <p className="font-mono text-xs max-w-xs break-all">
+                                {displayId}
+                                <span className="block mt-1 text-destructive text-xs">
+                                    Cannot view details: Backend returned UID instead of numeric ID
+                                </span>
+                            </p>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        onClick={handleClick}
+                        className="max-w-[180px] block text-left cursor-pointer hover:underline"
+                    >
+                        <span className="font-mono text-xs text-foreground">
+                            {truncatedDisplayId}
+                        </span>
+                    </button>
+                </TooltipTrigger>
+                {displayId !== "-" && (
+                    <TooltipContent>
+                        <p className="font-mono text-xs max-w-xs break-all">
+                            {displayId}
+                            {numericId !== displayId && (
+                                <span className="block mt-1 text-muted-foreground">
+                                    ID: {numericId}
+                                </span>
+                            )}
+                        </p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+        </TooltipProvider>
+    )
+}
+
 // Actions cell component
 function ActionsCell({ transaction }: { transaction: Transaction }) {
     // Use numeric id for API calls (backend expects Long type)
     const transactionId = transaction.id
     // Use uid or merchantTransactionId for display purposes
     const transactionRef = transaction.merchantTransactionId || transaction.internalTransactionId || transaction.uid
-    const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+    const drawerContext = React.useContext(TransactionDrawerContext)
     const isMobile = useIsMobile()
     const queryClient = useQueryClient()
 
-    const handleViewDetails = () => {
-        setIsDetailsOpen(true)
+    // Use context to control drawer state
+    const isDetailsOpen = drawerContext?.openTransactionUid === transaction.uid
+    const setIsDetailsOpen = (open: boolean) => {
+        if (drawerContext) {
+            drawerContext.setOpenTransactionUid(open ? transaction.uid : null)
+        }
     }
 
     // Retry mutation
@@ -227,14 +324,19 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={handleViewDetails}>
-                        View Details
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={`/transactions/${transactionId}`}
+                            className="text-foreground hover:underline font-mono text-xs"
+                        >
+                            View Details
+                        </Link>
                     </DropdownMenuItem>
-                    
+
                     {hasActions && <DropdownMenuSeparator />}
-                    
+
                     {showRetry && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                             onClick={handleRetry}
                             disabled={retryMutation.isPending}
                         >
@@ -244,7 +346,7 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             Retry
                         </DropdownMenuItem>
                     )}
-                    
+
                     {showComplete && (
                         <CompleteTransactionDialog
                             transactionId={transactionId}
@@ -258,11 +360,11 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             }
                         />
                     )}
-                    
+
                     {(showRefund || showCancel) && (showRetry || showComplete) && (
                         <DropdownMenuSeparator />
                     )}
-                    
+
                     {showRefund && (
                         <RefundTransactionDialog
                             transactionId={transactionId}
@@ -270,8 +372,8 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             amount={transaction.amount}
                             currency={transaction.currency}
                             trigger={
-                                <DropdownMenuItem 
-                                    variant="destructive" 
+                                <DropdownMenuItem
+                                    variant="destructive"
                                     onSelect={(e) => e.preventDefault()}
                                 >
                                     Refund
@@ -279,7 +381,7 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             }
                         />
                     )}
-                    
+
                     {showCancel && (
                         <CancelTransactionDialog
                             transactionId={transactionId}
@@ -287,8 +389,8 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             amount={transaction.amount}
                             currency={transaction.currency}
                             trigger={
-                                <DropdownMenuItem 
-                                    variant="destructive" 
+                                <DropdownMenuItem
+                                    variant="destructive"
                                     onSelect={(e) => e.preventDefault()}
                                 >
                                     Cancel
@@ -515,32 +617,7 @@ const columns: ColumnDef<Transaction>[] = [
                 Transaction ID
             </SortableHeader>
         ),
-        cell: ({ row }) => {
-            const transactionId = row.original.merchantTransactionId || "-"
-            const truncatedId = transactionId !== "-" ? truncateId(transactionId, 20) : "-"
-
-            return (
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="max-w-[180px]">
-                                <Link
-                                    href={`/transactions/${transactionId}`}
-                                    className="text-foreground hover:underline font-mono text-xs"
-                                >
-                                    {truncatedId}
-                                </Link>
-                            </div>
-                        </TooltipTrigger>
-                        {transactionId !== "-" && (
-                            <TooltipContent>
-                                <p className="font-mono text-xs max-w-xs break-all">{transactionId}</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                </TooltipProvider>
-            )
-        },
+        cell: ({ row }) => <TransactionIdCell transaction={row.original} />,
         enableHiding: false,
         size: 180,
     },
@@ -706,6 +783,9 @@ export function TransactionTable({
         setRowSelection,
     } = useTransactionsTableStore()
 
+    // Drawer state for transaction details
+    const [openTransactionUid, setOpenTransactionUid] = React.useState<string | null>(null)
+
     const table = useReactTable({
         data,
         columns,
@@ -761,389 +841,201 @@ export function TransactionTable({
     }, [filters])
 
     return (
-        <div className="w-full flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 px-4 lg:px-6 shrink-0">
-                {/* Server-side Filters */}
-                <TransactionFilters />
+        <TransactionDrawerContext.Provider value={{ openTransactionUid, setOpenTransactionUid }}>
+            <div className="w-full flex flex-col gap-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 px-4 lg:px-6 shrink-0">
+                    {/* Server-side Filters */}
+                    <TransactionFilters />
 
-                <div className="flex items-center gap-2">
-                    {/* Customize Columns */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <IconLayoutColumns />
-                            <span className="hidden lg:inline">Customize Columns</span>
-                            <span className="lg:hidden">Columns</span>
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        {table
-                            .getAllColumns()
-                            .filter(
-                                (column) =>
-                                    column.getCanHide()
-                            )
-                            .map((column) => {
-                                return (
-                                    <DropdownMenuCheckboxItem
-                                        key={column.id}
-                                        className="capitalize"
-                                        checked={column.getIsVisible()}
-                                        onCheckedChange={(value) =>
-                                            column.toggleVisibility(!!value)
-                                        }
-                                    >
-                                        {column.id}
-                                    </DropdownMenuCheckboxItem>
-                                )
-                            })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                        {/* Customize Columns */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <IconLayoutColumns />
+                                    <span className="hidden lg:inline">Customize Columns</span>
+                                    <span className="lg:hidden">Columns</span>
+                                    <IconChevronDown />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                {table
+                                    .getAllColumns()
+                                    .filter(
+                                        (column) =>
+                                            column.getCanHide()
+                                    )
+                                    .map((column) => {
+                                        return (
+                                            <DropdownMenuCheckboxItem
+                                                key={column.id}
+                                                className="capitalize"
+                                                checked={column.getIsVisible()}
+                                                onCheckedChange={(value) =>
+                                                    column.toggleVisibility(!!value)
+                                                }
+                                            >
+                                                {column.id}
+                                            </DropdownMenuCheckboxItem>
+                                        )
+                                    })}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                {/* Export */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <IconDownload />
-                            <span className="hidden lg:inline">Export</span>
-                            <IconChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => handleExport('csv')}>
-                            Export as CSV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport('excel')}>
-                            Export as Excel
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        {/* Export */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <IconDownload />
+                                    <span className="hidden lg:inline">Export</span>
+                                    <IconChevronDown />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                                    Export as CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                                    Export as Excel
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
-            </div>
-            <div className="relative flex flex-col gap-4 px-4 lg:px-6 min-w-0">
-                <div className="w-full overflow-x-auto rounded-lg border">
-                    <div className="min-w-full inline-block">
-                        <Table className="w-full">
-                            <TableHeader className="bg-muted sticky top-0 z-10">
-                                {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id}>
-                                        {headerGroup.headers.map((header) => {
-                                            return (
-                                                <TableHead key={header.id} colSpan={header.colSpan}>
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(
-                                                            header.column.columnDef.header,
-                                                            header.getContext()
-                                                        )}
-                                                </TableHead>
-                                            )
-                                        })}
-                                    </TableRow>
-                                ))}
-                            </TableHeader>
-                            <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                                {isLoading ? (
-                                    <TableSkeletonRows rows={10} columns={TRANSACTIONS_TABLE_COLUMNS} />
-                                ) : table.getRowModel().rows?.length ? (
-                                    table.getRowModel().rows.map((row) => (
-                                        <TableRow
-                                            key={row.id}
-                                            data-state={row.getIsSelected() && "selected"}
-                                        >
-                                            {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id}>
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </TableCell>
-                                            ))}
+                <div className="relative flex flex-col gap-4 px-4 lg:px-6 min-w-0">
+                    <div className="w-full overflow-x-auto rounded-lg border">
+                        <div className="min-w-full inline-block">
+                            <Table className="w-full">
+                                <TableHeader className="bg-muted sticky top-0 z-10">
+                                    {table.getHeaderGroups().map((headerGroup) => (
+                                        <TableRow key={headerGroup.id}>
+                                            {headerGroup.headers.map((header) => {
+                                                return (
+                                                    <TableHead key={header.id} colSpan={header.colSpan}>
+                                                        {header.isPlaceholder
+                                                            ? null
+                                                            : flexRender(
+                                                                header.column.columnDef.header,
+                                                                header.getContext()
+                                                            )}
+                                                    </TableHead>
+                                                )
+                                            })}
                                         </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={columns.length}
-                                            className="h-24 text-center"
-                                        >
-                                            No results.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
-                <div className="flex items-center justify-between px-4 flex-shrink-0">
-                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
-                        {Object.keys(rowSelection).length} of{" "}
-                        {paginationMeta.totalElements} row(s) selected.
-                    </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
-                        <div className="hidden items-center gap-2 lg:flex">
-                            <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                                Rows per page
-                            </Label>
-                            <Select
-                                value={`${pagination.pageSize}`}
-                                onValueChange={(value) => {
-                                    setPageSize(Number(value))
-                                }}
-                            >
-                                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                                    <SelectValue
-                                        placeholder={pagination.pageSize}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                                        <SelectItem key={pageSize} value={`${pageSize}`}>
-                                            {pageSize}
-                                        </SelectItem>
                                     ))}
-                                </SelectContent>
-                            </Select>
+                                </TableHeader>
+                                <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                                    {isLoading ? (
+                                        <TableSkeletonRows rows={10} columns={TRANSACTIONS_TABLE_COLUMNS} />
+                                    ) : table.getRowModel().rows?.length ? (
+                                        table.getRowModel().rows.map((row) => (
+                                            <TableRow
+                                                key={row.id}
+                                                data-state={row.getIsSelected() && "selected"}
+                                            >
+                                                {row.getVisibleCells().map((cell) => (
+                                                    <TableCell key={cell.id}>
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={columns.length}
+                                                className="h-24 text-center"
+                                            >
+                                                No results.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {pagination.pageIndex + 1} of{" "}
-                            {paginationMeta.totalPages || 1}
+                    </div>
+                    <div className="flex items-center justify-between px-4 flex-shrink-0">
+                        <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
+                            {Object.keys(rowSelection).length} of{" "}
+                            {paginationMeta.totalElements} row(s) selected.
                         </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setPageIndex(0)}
-                                disabled={paginationMeta.first}
-                            >
-                                <span className="sr-only">Go to first page</span>
-                                <IconChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => setPageIndex(pagination.pageIndex - 1)}
-                                disabled={paginationMeta.first}
-                            >
-                                <span className="sr-only">Go to previous page</span>
-                                <IconChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => setPageIndex(pagination.pageIndex + 1)}
-                                disabled={paginationMeta.last}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <IconChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() => setPageIndex(paginationMeta.totalPages - 1)}
-                                disabled={paginationMeta.last}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <IconChevronsRight />
-                            </Button>
+                        <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
+                            <div className="hidden items-center gap-2 lg:flex">
+                                <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                                    Rows per page
+                                </Label>
+                                <Select
+                                    value={`${pagination.pageSize}`}
+                                    onValueChange={(value) => {
+                                        setPageSize(Number(value))
+                                    }}
+                                >
+                                    <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                                        <SelectValue
+                                            placeholder={pagination.pageSize}
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[10, 20, 30, 40, 50].map((pageSize) => (
+                                            <SelectItem key={pageSize} value={`${pageSize}`}>
+                                                {pageSize}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex w-fit items-center justify-center text-sm font-medium">
+                                Page {pagination.pageIndex + 1} of{" "}
+                                {paginationMeta.totalPages || 1}
+                            </div>
+                            <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                                <Button
+                                    variant="outline"
+                                    className="hidden h-8 w-8 p-0 lg:flex"
+                                    onClick={() => setPageIndex(0)}
+                                    disabled={paginationMeta.first}
+                                >
+                                    <span className="sr-only">Go to first page</span>
+                                    <IconChevronsLeft />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="size-8"
+                                    size="icon"
+                                    onClick={() => setPageIndex(pagination.pageIndex - 1)}
+                                    disabled={paginationMeta.first}
+                                >
+                                    <span className="sr-only">Go to previous page</span>
+                                    <IconChevronLeft />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="size-8"
+                                    size="icon"
+                                    onClick={() => setPageIndex(pagination.pageIndex + 1)}
+                                    disabled={paginationMeta.last}
+                                >
+                                    <span className="sr-only">Go to next page</span>
+                                    <IconChevronRight />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="hidden size-8 lg:flex"
+                                    size="icon"
+                                    onClick={() => setPageIndex(paginationMeta.totalPages - 1)}
+                                    disabled={paginationMeta.last}
+                                >
+                                    <span className="sr-only">Go to last page</span>
+                                    <IconChevronsRight />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </TransactionDrawerContext.Provider>
     )
 }
 
 
-// function TableCellViewer({ item, displayText }: { item: Transaction; displayText?: string }) {
-//     const isMobile = useIsMobile()
-//     const textToShow = displayText || item.merchantTransactionId || "-"
 
-//     return (
-//         <Drawer direction={isMobile ? "bottom" : "right"}>
-//             <DrawerTrigger asChild>
-//                 <Button variant="link" className="text-foreground w-fit px-0 text-left font-mono text-xs">
-//                     {textToShow}
-//                 </Button>
-//             </DrawerTrigger>
-//             <DrawerContent>
-//                 <DrawerHeader className="gap-1">
-//                     <DrawerTitle>Transaction Details</DrawerTitle>
-//                     <DrawerDescription>
-//                         Transaction ID: {item.uid}
-//                     </DrawerDescription>
-//                 </DrawerHeader>
-//                 <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-//                     {/* Transaction IDs Section */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Transaction IDs</Label>
-//                         <div className="grid gap-2 rounded-lg border p-3">
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Internal:</span>
-//                                 <span className="font-mono text-xs">{item.internalTransactionId}</span>
-//                             </div>
-//                             {item.externalTransactionId && (
-//                                 <div className="flex justify-between">
-//                                     <span className="text-muted-foreground">External:</span>
-//                                     <span className="font-mono text-xs">{item.externalTransactionId}</span>
-//                                 </div>
-//                             )}
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Merchant:</span>
-//                                 <span className="font-mono text-xs">{item.merchantTransactionId}</span>
-//                             </div>
-//                             {item.pspTransactionId && (
-//                                 <div className="flex justify-between">
-//                                     <span className="text-muted-foreground">PSP:</span>
-//                                     <span className="font-mono text-xs">{item.pspTransactionId}</span>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     </div>
-
-//                     <Separator />
-
-//                     {/* Amount and Currency */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Amount</Label>
-//                         <div className="text-2xl font-bold">
-//                             {formatAmount(item.amount, item.currency)}
-//                         </div>
-//                     </div>
-
-//                     <Separator />
-
-//                     {/* Customer Information */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Customer Information</Label>
-//                         <div className="grid gap-2 rounded-lg border p-3">
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Name:</span>
-//                                 <span>{item.customerName || "-"}</span>
-//                             </div>
-//                             {item.customerIdentifier && (
-//                                 <div className="flex justify-between">
-//                                     <span className="text-muted-foreground">Identifier:</span>
-//                                     <span>{item.customerIdentifier}</span>
-//                                 </div>
-//                             )}
-//                             {item.paymentMethod && (
-//                                 <div className="flex justify-between">
-//                                     <span className="text-muted-foreground">Payment Method:</span>
-//                                     <span>{item.paymentMethod}</span>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     </div>
-
-//                     <Separator />
-
-//                     {/* Status */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Status</Label>
-//                         <Badge
-//                             variant="outline"
-//                             className="w-fit px-3 py-1"
-//                             style={{
-//                                 backgroundColor: `${item.colorCode}20`,
-//                                 borderColor: item.colorCode,
-//                                 color: item.colorCode,
-//                             }}
-//                         >
-//                             {item.status === "SUCCESS" || item.status === "COMPLETED" ? (
-//                                 <IconCircleCheckFilled className="mr-2 size-4" />
-//                             ) : item.status === "FAILED" ? (
-//                                 <span className="mr-2">✕</span>
-//                             ) : (
-//                                 <IconLoader className="mr-2 size-4" />
-//                             )}
-//                             {item.status}
-//                         </Badge>
-//                     </div>
-
-//                     <Separator />
-
-//                     {/* Merchant Information */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Merchant Information</Label>
-//                         <div className="grid gap-2 rounded-lg border p-3">
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Merchant:</span>
-//                                 <span>{item.merchantName}</span>
-//                             </div>
-//                             {item.submerchantName && (
-//                                 <div className="flex justify-between">
-//                                     <span className="text-muted-foreground">Submerchant:</span>
-//                                     <span>{item.submerchantName}</span>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     </div>
-
-//                     <Separator />
-
-//                     {/* PGO Information */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Payment Gateway</Label>
-//                         <div className="rounded-lg border p-3">
-//                             <div className="font-medium">{item.pgoName}</div>
-//                         </div>
-//                     </div>
-
-//                     {/* Error Information */}
-//                     {(item.status === "FAILED" || item.errorCode || item.errorMessage || item.description) && (
-//                         <>
-//                             <Separator />
-//                             <div className="flex flex-col gap-3">
-//                                 <Label className="text-base font-semibold text-destructive">Error Information</Label>
-//                                 <div className="grid gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-//                                     {item.errorCode && (
-//                                         <div className="flex justify-between">
-//                                             <span className="text-muted-foreground">Error Code:</span>
-//                                             <span className="font-medium text-destructive">{item.errorCode}</span>
-//                                         </div>
-//                                     )}
-//                                     {item.errorMessage && (
-//                                         <div className="flex flex-col gap-1">
-//                                             <span className="text-muted-foreground">Error Message:</span>
-//                                             <span className="text-destructive">{item.errorMessage}</span>
-//                                         </div>
-//                                     )}
-//                                     {item.description && (
-//                                         <div className="flex flex-col gap-1">
-//                                             <span className="text-muted-foreground">Description:</span>
-//                                             <span>{item.description}</span>
-//                                         </div>
-//                                     )}
-//                                 </div>
-//                             </div>
-//                         </>
-//                     )}
-
-//                     <Separator />
-
-//                     {/* Timestamps */}
-//                     <div className="flex flex-col gap-3">
-//                         <Label className="text-base font-semibold">Timestamps</Label>
-//                         <div className="grid gap-2 rounded-lg border p-3">
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Created:</span>
-//                                 <span>{formatDate(item.createdAt)}</span>
-//                             </div>
-//                             <div className="flex justify-between">
-//                                 <span className="text-muted-foreground">Updated:</span>
-//                                 <span>{formatDate(item.updatedAt)}</span>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//                 <DrawerFooter>
-//                     <DrawerClose asChild>
-//                         <Button variant="outline">Close</Button>
-//                     </DrawerClose>
-//                 </DrawerFooter>
-//             </DrawerContent>
-//         </Drawer>
-//     )
-// }
