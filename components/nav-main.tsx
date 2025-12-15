@@ -8,6 +8,9 @@ import {
   IconUsers,
   IconCreditCard,
   IconChevronRight,
+  IconUserScan,
+  IconKey,
+  IconFingerprint,
 } from "@tabler/icons-react"
 
 import {
@@ -33,6 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   IconFolder,
   IconUsers,
   IconCreditCard,
+  IconFingerprint,
 }
 
 export function NavMain({

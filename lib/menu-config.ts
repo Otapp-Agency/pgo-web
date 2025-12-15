@@ -1,9 +1,10 @@
-import { PERMISSIONS } from './auth/permissions'
+import { PERMISSIONS } from './auth/permissions';
 
 /**
  * Menu Item Interface
  * Defines the structure for menu items with permission requirements
  */
+
 export interface MenuItem {
     title: string
     url: string
@@ -44,9 +45,9 @@ export const menuConfig = {
             permission: PERMISSIONS.MERCHANTS.VIEW,
         },
         {
-            title: "Users",
+            title: "Users & Roles",
             url: "/users",
-            icon: "IconUsers",
+            icon: "IconUserScan",
             permission: PERMISSIONS.USERS.VIEW,
             subItems: [
                 {
@@ -57,7 +58,7 @@ export const menuConfig = {
                 {
                     title: "Roles",
                     url: "/roles",
-                    icon: "IconUsers",
+                    icon: "IconFingerprint",
                 },
             ],
         },
@@ -75,4 +76,3 @@ export const menuConfig = {
         },
     ] as MenuItem[],
 }
-

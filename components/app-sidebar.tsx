@@ -13,7 +13,6 @@ import { getUserFromSession, verifySession } from "@/lib/auth/services/auth.serv
 import { menuConfig } from "@/lib/menu-config"
 import { filterMenuItems } from "@/lib/menu-utils"
 import { Logo } from "@/components/logo"
-import { Separator } from "@radix-ui/react-separator"
 
 export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = await getUserFromSession()
