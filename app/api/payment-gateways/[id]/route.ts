@@ -23,10 +23,10 @@ export async function GET(
             );
         }
 
-        const { id } = await params;
+        const { id: gatewayUid } = await params;
 
-        // Build the URL with gateway ID
-        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.getById.replace('{id}', id)}`;
+        // Build the URL with gateway UID
+        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.getByUid.replace('{uid}', gatewayUid)}`;
 
         // Fetch from backend API
         const response = await fetch(url, {
@@ -96,13 +96,13 @@ export async function PUT(
             );
         }
 
-        const { id } = await params;
+        const { id: gatewayUid } = await params;
 
         // Parse request body
         const body = await request.json();
 
         // Validate that at least one field is provided for update
-        const hasUpdateFields = 
+        const hasUpdateFields =
             body.name !== undefined ||
             body.api_base_url_production !== undefined ||
             body.api_base_url_sandbox !== undefined ||
@@ -140,7 +140,7 @@ export async function PUT(
         }
 
         // Build the URL
-        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.update.replace('{id}', id)}`;
+        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.update.replace('{uid}', gatewayUid)}`;
 
         // Update payment gateway via backend API
         const response = await fetch(url, {

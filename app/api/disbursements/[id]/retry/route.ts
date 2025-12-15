@@ -22,17 +22,17 @@ export async function POST(
             );
         }
 
-        const { id: disbursementId } = await params;
+        const { id: disbursementUid } = await params;
 
-        if (!disbursementId?.trim()) {
+        if (!disbursementUid?.trim()) {
             return NextResponse.json(
-                { error: 'Disbursement ID is required' },
+                { error: 'Disbursement UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for retry endpoint
-        const endpoint = buildEndpointUrl.retryDisbursement(disbursementId);
+        const endpoint = buildEndpointUrl.retryDisbursement(disbursementUid);
         const url = new URL(`${API_CONFIG.baseURL}${endpoint}`);
         // Add reason as query parameter
         url.searchParams.set('reason', 'Manual retry');

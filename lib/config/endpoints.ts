@@ -13,7 +13,7 @@ export const buildEndpointUrl = {
   userByUid: (uid: string) =>
     API_ENDPOINTS.users.getByUid.replace("{uid}", uid),
   updateUser: (uid: string) => API_ENDPOINTS.users.update.replace("{uid}", uid),
-  deleteUser: (id: string) => API_ENDPOINTS.users.delete.replace("{id}", id),
+  deleteUser: (uid: string) => API_ENDPOINTS.users.delete.replace("{uid}", uid),
   activateUser: (uid: string) =>
     API_ENDPOINTS.users.activate.replace("{uid}", uid),
   deactivateUser: (uid: string) =>
@@ -32,24 +32,24 @@ export const buildEndpointUrl = {
     API_ENDPOINTS.auth.resetPassword.replace("{userId}", userId),
 
   // Transaction endpoints
-  transactionById: (id: string) =>
-    API_ENDPOINTS.transactions.getById.replace("{id}", id),
-  updateTransactionStatus: (id: string) =>
-    API_ENDPOINTS.transactions.updateStatus.replace("{id}", id),
-  retryTransaction: (id: string) =>
-    API_ENDPOINTS.transactions.retry.replace("{id}", id),
-  refundTransaction: (id: string) =>
-    API_ENDPOINTS.transactions.refund.replace("{id}", id),
-  completeTransaction: (id: string) =>
-    API_ENDPOINTS.transactions.complete.replace("{id}", id),
-  cancelTransaction: (id: string) =>
-    API_ENDPOINTS.transactions.cancel.replace("{id}", id),
-  transactionProcessingHistory: (id: string) =>
-    API_ENDPOINTS.transactions.processingHistory.replace("{id}", id),
-  transactionAuditTrail: (id: string) =>
-    API_ENDPOINTS.transactions.auditTrail.replace("{id}", id),
-  transactionCanUpdate: (id: string) =>
-    API_ENDPOINTS.transactions.canUpdate.replace("{id}", id),
+  transactionByUid: (uid: string) =>
+    API_ENDPOINTS.transactions.getByUid.replace("{uid}", uid),
+  updateTransactionStatus: (uid: string) =>
+    API_ENDPOINTS.transactions.updateStatus.replace("{uid}", uid),
+  retryTransaction: (uid: string) =>
+    API_ENDPOINTS.transactions.retry.replace("{uid}", uid),
+  refundTransaction: (uid: string) =>
+    API_ENDPOINTS.transactions.refund.replace("{uid}", uid),
+  completeTransaction: (uid: string) =>
+    API_ENDPOINTS.transactions.complete.replace("{uid}", uid),
+  cancelTransaction: (uid: string) =>
+    API_ENDPOINTS.transactions.cancel.replace("{uid}", uid),
+  transactionProcessingHistory: (uid: string) =>
+    API_ENDPOINTS.transactions.processingHistory.replace("{uid}", uid),
+  transactionAuditTrail: (uid: string) =>
+    API_ENDPOINTS.transactions.auditTrail.replace("{uid}", uid),
+  transactionCanUpdate: (uid: string) =>
+    API_ENDPOINTS.transactions.canUpdate.replace("{uid}", uid),
   transactionsByStatus: (status: string) =>
     API_ENDPOINTS.transactions.byStatus.replace("{status}", status),
   transactionsByMerchant: (merchantId: string) =>
@@ -71,22 +71,22 @@ export const buildEndpointUrl = {
     API_ENDPOINTS.disbursements.getById.replace("{id}", id),
   disbursementByUid: (uid: string) =>
     API_ENDPOINTS.disbursements.getByUid.replace("{uid}", uid),
-  updateDisbursementStatus: (id: string) =>
-    API_ENDPOINTS.disbursements.updateStatus.replace("{id}", id),
-  retryDisbursement: (id: string) =>
-    API_ENDPOINTS.disbursements.retry.replace("{id}", id),
-  forceRetryDisbursement: (id: string) =>
-    API_ENDPOINTS.disbursements.forceRetry.replace("{id}", id),
-  completeDisbursement: (id: string) =>
-    API_ENDPOINTS.disbursements.complete.replace("{id}", id),
-  cancelDisbursement: (id: string) =>
-    API_ENDPOINTS.disbursements.cancel.replace("{id}", id),
-  disbursementProcessingHistory: (id: string) =>
-    API_ENDPOINTS.disbursements.processingHistory.replace("{id}", id),
-  disbursementAuditTrail: (id: string) =>
-    API_ENDPOINTS.disbursements.auditTrail.replace("{id}", id),
-  disbursementCanUpdate: (id: string) =>
-    API_ENDPOINTS.disbursements.canUpdate.replace("{id}", id),
+  updateDisbursementStatus: (uid: string) =>
+    API_ENDPOINTS.disbursements.updateStatus.replace("{uid}", uid),
+  retryDisbursement: (uid: string) =>
+    API_ENDPOINTS.disbursements.retry.replace("{uid}", uid),
+  forceRetryDisbursement: (uid: string) =>
+    API_ENDPOINTS.disbursements.forceRetry.replace("{uid}", uid),
+  completeDisbursement: (uid: string) =>
+    API_ENDPOINTS.disbursements.complete.replace("{uid}", uid),
+  cancelDisbursement: (uid: string) =>
+    API_ENDPOINTS.disbursements.cancel.replace("{uid}", uid),
+  disbursementProcessingHistory: (uid: string) =>
+    API_ENDPOINTS.disbursements.processingHistory.replace("{uid}", uid),
+  disbursementAuditTrail: (uid: string) =>
+    API_ENDPOINTS.disbursements.auditTrail.replace("{uid}", uid),
+  disbursementCanUpdate: (uid: string) =>
+    API_ENDPOINTS.disbursements.canUpdate.replace("{uid}", uid),
   disbursementsByStatus: (status: string) =>
     API_ENDPOINTS.disbursements.byStatus.replace("{status}", status),
   disbursementsByMerchant: (merchantId: string) =>

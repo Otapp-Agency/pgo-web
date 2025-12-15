@@ -122,14 +122,14 @@ async function fetchUsersListServer(
 /**
  * Server-side function to fetch single user details
  */
-async function fetchUserDetailServer(userId: string) {
+async function fetchUserDetailServer(userUid: string) {
     const session = await getSession();
 
     if (!session?.token) {
         throw new Error('Unauthorized: No session token available');
     }
 
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.users.getById.replace('{id}', userId)}`;
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.users.getByUid.replace('{uid}', userUid)}`;
 
     const response = await fetch(url, {
         method: 'GET',

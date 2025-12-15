@@ -17,10 +17,10 @@ export async function GET(
       );
     }
 
-    const { id: userId } = await params;
+    const { id: userUid } = await params;
 
-    // Build the URL with user ID
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.users.getById.replace('{id}', userId)}`;
+    // Build the URL with user UID
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.users.getByUid.replace('{uid}', userUid)}`;
 
     // Fetch from backend API
     const response = await fetch(url, {

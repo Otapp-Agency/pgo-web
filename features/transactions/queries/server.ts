@@ -128,14 +128,14 @@ async function fetchTransactionsListServer(
 /**
  * Server-side function to fetch single transaction details
  */
-async function fetchTransactionDetailServer(transactionId: string) {
+async function fetchTransactionDetailServer(transactionUid: string) {
     const session = await getSession();
 
     if (!session?.token) {
         throw new Error('Unauthorized: No session token available');
     }
 
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.getById.replace('{id}', transactionId)}`;
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.getByUid.replace('{uid}', transactionUid)}`;
 
     const response = await fetch(url, {
         method: 'GET',

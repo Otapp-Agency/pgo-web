@@ -21,7 +21,7 @@ export async function PATCH(
             );
         }
 
-        const { id } = await params;
+        const { id: gatewayUid } = await params;
 
         // Parse request body
         const body = await request.json();
@@ -40,7 +40,7 @@ export async function PATCH(
         };
 
         // Build the URL
-        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.status.replace('{id}', id)}`;
+        const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.status.replace('{uid}', gatewayUid)}`;
 
         // Update payment gateway status via backend API
         const response = await fetch(url, {

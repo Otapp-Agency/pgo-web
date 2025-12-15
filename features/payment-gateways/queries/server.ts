@@ -115,14 +115,14 @@ async function fetchPaymentGatewaysListServer(
 /**
  * Server-side function to fetch single payment gateway details
  */
-async function fetchPaymentGatewayDetailServer(paymentGatewayId: string) {
+async function fetchPaymentGatewayDetailServer(paymentGatewayUid: string) {
     const session = await getSession();
 
     if (!session?.token) {
         throw new Error('Unauthorized: No session token available');
     }
 
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.getById.replace('{id}', paymentGatewayId)}`;
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.paymentGateways.getByUid.replace('{uid}', paymentGatewayUid)}`;
 
     const response = await fetch(url, {
         method: 'GET',

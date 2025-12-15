@@ -71,16 +71,16 @@ export const API_ENDPOINTS = {
   transactions: {
     // Core operations
     list: "/admin/v1/transactions",
-    getById: "/admin/v1/transactions/{id}",
+    getByUid: "/admin/v1/transactions/uid/{uid}",
     search: "/admin/v1/transactions/search",
     summary: "/admin/v1/transactions/summary",
 
     // Transaction actions
-    updateStatus: "/admin/v1/transactions/{id}/status",
-    retry: "/admin/v1/transactions/{id}/retry",
-    refund: "/admin/v1/transactions/{id}/refund",
-    complete: "/admin/v1/transactions/{id}/complete",
-    cancel: "/admin/v1/transactions/{id}/cancel",
+    updateStatus: "/admin/v1/transactions/uid/{uid}/status",
+    retry: "/admin/v1/transactions/uid/{uid}/retry",
+    refund: "/admin/v1/transactions/uid/{uid}/refund",
+    complete: "/admin/v1/transactions/uid/{uid}/complete",
+    cancel: "/admin/v1/transactions/uid/{uid}/cancel",
 
     // Statistics
     volumeStats: "/admin/v1/transactions/stats/volume",
@@ -96,9 +96,9 @@ export const API_ENDPOINTS = {
     byAmountRange: "/admin/v1/transactions/amount-range",
 
     // Additional features
-    processingHistory: "/admin/v1/transactions/{id}/processing-history",
-    auditTrail: "/admin/v1/transactions/{id}/audit-trail",
-    canUpdate: "/admin/v1/transactions/{id}/can-update",
+    processingHistory: "/admin/v1/transactions/uid/{uid}/processing-history",
+    auditTrail: "/admin/v1/transactions/uid/{uid}/audit-trail",
+    canUpdate: "/admin/v1/transactions/uid/{uid}/can-update",
     stale: "/admin/v1/transactions/stale",
     pending: "/admin/v1/transactions/pending",
     failed: "/admin/v1/transactions/failed",
@@ -127,11 +127,11 @@ export const API_ENDPOINTS = {
     summary: "/admin/v1/disbursements/summary",
 
     // Actions
-    updateStatus: "/admin/v1/disbursements/{id}/status",
-    retry: "/admin/v1/disbursements/{id}/retry",
-    forceRetry: "/admin/v1/disbursements/{id}/retry-by-id",
-    complete: "/admin/v1/disbursements/{id}/complete",
-    cancel: "/admin/v1/disbursements/{id}/cancel",
+    updateStatus: "/admin/v1/disbursements/uid/{uid}/status",
+    retry: "/admin/v1/disbursements/uid/{uid}/retry",
+    forceRetry: "/admin/v1/disbursements/uid/{uid}/retry-by-id",
+    complete: "/admin/v1/disbursements/uid/{uid}/complete",
+    cancel: "/admin/v1/disbursements/uid/{uid}/cancel",
 
     // Statistics
     volumeStats: "/admin/v1/disbursements/stats/volume",

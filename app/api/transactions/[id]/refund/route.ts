@@ -21,7 +21,7 @@ export async function POST(
             );
         }
 
-        const { id: transactionId } = await params;
+        const { id: transactionUid } = await params;
 
         // Parse request body (contains refundAmount and reason)
         const body = await request.json().catch(() => ({}));
@@ -35,7 +35,7 @@ export async function POST(
         }
 
         // Build the URL for refund endpoint with query params
-        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.refund.replace('{id}', transactionId)}`);
+        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.refund.replace('{uid}', transactionUid)}`);
         // Add required query parameters
         url.searchParams.set('refundAmount', body.refundAmount);
         url.searchParams.set('reason', body.reason || 'Manual refund');

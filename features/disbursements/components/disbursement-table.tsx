@@ -360,8 +360,8 @@ function TableCellViewer({ item, displayText }: { item: Disbursement; displayTex
 
 // Actions cell component
 function ActionsCell({ disbursement }: { disbursement: Disbursement }) {
-    // Use numeric id for API calls
-    const disbursementId = disbursement.id
+    // Use uid for API calls
+    const disbursementId = disbursement.uid || disbursement.id
     // Use uid or merchantDisbursementId for display purposes
     const disbursementRef = disbursement.merchantDisbursementId || disbursement.sourceTransactionId || disbursement.uid
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)

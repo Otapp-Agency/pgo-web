@@ -23,17 +23,17 @@ export async function GET(
             );
         }
 
-        const { id: disbursementId } = await params;
+        const { id: disbursementUid } = await params;
 
-        if (!disbursementId?.trim()) {
+        if (!disbursementUid?.trim()) {
             return NextResponse.json(
-                { error: 'Disbursement ID is required' },
+                { error: 'Disbursement UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for can-update endpoint
-        const endpoint = buildEndpointUrl.disbursementCanUpdate(disbursementId);
+        const endpoint = buildEndpointUrl.disbursementCanUpdate(disbursementUid);
         const url = `${API_CONFIG.baseURL}${endpoint}`;
 
         console.log('[Disbursements Can Update API] Checking:', url);

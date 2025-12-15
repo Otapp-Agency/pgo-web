@@ -269,8 +269,8 @@ function TransactionIdCell({ transaction }: { transaction: Transaction }) {
 
 // Actions cell component
 function ActionsCell({ transaction }: { transaction: Transaction }) {
-    // Use numeric id for API calls (backend expects Long type)
-    const transactionId = transaction.id
+    // Use uid for API calls
+    const transactionId = transaction.uid || transaction.id
     // Use uid or merchantTransactionId for display purposes
     const transactionRef = transaction.merchantTransactionId || transaction.internalTransactionId || transaction.uid
     const drawerContext = React.useContext(TransactionDrawerContext)

@@ -21,17 +21,17 @@ export async function POST(
             );
         }
 
-        const { id: transactionId } = await params;
+        const { id: transactionUid } = await params;
 
-        if (!transactionId?.trim()) {
+        if (!transactionUid?.trim()) {
             return NextResponse.json(
-                { error: 'Transaction ID is required' },
+                { error: 'Transaction UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for retry endpoint with reason as query param
-        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.retry.replace('{id}', transactionId)}`);
+        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.retry.replace('{uid}', transactionUid)}`);
         // Add reason as query parameter (may be required by backend)
         url.searchParams.set('reason', 'Manual retry');
 

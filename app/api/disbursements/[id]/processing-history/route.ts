@@ -24,17 +24,17 @@ export async function GET(
             );
         }
 
-        const { id: disbursementId } = await params;
+        const { id: disbursementUid } = await params;
 
-        if (!disbursementId?.trim()) {
+        if (!disbursementUid?.trim()) {
             return NextResponse.json(
-                { error: 'Disbursement ID is required' },
+                { error: 'Disbursement UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for processing history endpoint
-        const endpoint = buildEndpointUrl.disbursementProcessingHistory(disbursementId);
+        const endpoint = buildEndpointUrl.disbursementProcessingHistory(disbursementUid);
         const url = `${API_CONFIG.baseURL}${endpoint}`;
 
         console.log('[Disbursements Processing History API] Fetching:', url);

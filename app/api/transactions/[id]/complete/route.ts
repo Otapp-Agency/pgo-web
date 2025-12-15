@@ -21,13 +21,13 @@ export async function POST(
             );
         }
 
-        const { id: transactionId } = await params;
+        const { id: transactionUid } = await params;
 
         // Parse request body (may contain reason)
         const body = await request.json().catch(() => ({}));
 
         // Build the URL for complete endpoint with reason as query param
-        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.complete.replace('{id}', transactionId)}`);
+        const url = new URL(`${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.complete.replace('{uid}', transactionUid)}`);
         // Add reason as query parameter (required by backend)
         url.searchParams.set('reason', body.reason || 'Manual completion');
 

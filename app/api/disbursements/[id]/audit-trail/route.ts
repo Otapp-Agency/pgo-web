@@ -24,17 +24,17 @@ export async function GET(
             );
         }
 
-        const { id: disbursementId } = await params;
+        const { id: disbursementUid } = await params;
 
-        if (!disbursementId?.trim()) {
+        if (!disbursementUid?.trim()) {
             return NextResponse.json(
-                { error: 'Disbursement ID is required' },
+                { error: 'Disbursement UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for audit trail endpoint
-        const endpoint = buildEndpointUrl.disbursementAuditTrail(disbursementId);
+        const endpoint = buildEndpointUrl.disbursementAuditTrail(disbursementUid);
         const url = `${API_CONFIG.baseURL}${endpoint}`;
 
         console.log('[Disbursements Audit Trail API] Fetching:', url);

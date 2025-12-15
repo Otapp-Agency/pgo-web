@@ -75,9 +75,9 @@ function TransactionDetails({ transactionId }: Props) {
     // 
     // If transaction.id is not numeric, it means the backend returned a UID in the id field,
     // which is incorrect. The backend should always return the numeric ID in the id field.
-    const numericId = transaction.id;
+    const transactionUid = transaction.uid || transaction.id;
 
-    if (!numericId) {
+    if (!transactionUid) {
         return (
             <div className="@container/main flex flex-1 flex-col gap-2 py-2">
                 <div className="flex items-center gap-4 px-4 lg:px-6">
@@ -96,15 +96,6 @@ function TransactionDetails({ transactionId }: Props) {
         );
     }
 
-    // Warn if the ID is not numeric - this indicates a backend issue
-    // The backend should return numeric ID in the id field, not UID
-    if (!isNumericId(numericId)) {
-        console.error(
-            'Transaction ID is not numeric. Backend endpoints requiring Long type will fail.',
-            'ID:', numericId,
-            'Expected: numeric ID, Got: UID or other non-numeric value'
-        );
-    }
 
     return (
         <div className="@container/main flex flex-1 flex-col gap-2 py-2">
@@ -132,21 +123,21 @@ function TransactionDetails({ transactionId }: Props) {
                 </TabsList>
 
                 <TabsContent value="overview" className="flex-1">
-                    {/* Pass numeric ID for backend API calls that expect Long type */}
+                    {/* Pass UID for backend API calls */}
                     <TransactionOverviewTab
                         transaction={transaction}
-                        numericId={numericId}
+                        numericId={transactionUid}
                     />
                 </TabsContent>
 
                 <TabsContent value="processing-history" className="flex-1">
-                    {/* Backend expects numeric id (Long), not UID */}
-                    <TransactionProcessingHistoryTab transactionId={numericId} />
+                    {/* Backend now uses UID */}
+                    <TransactionProcessingHistoryTab transactionId={transactionUid} />
                 </TabsContent>
 
                 <TabsContent value="audit-trail" className="flex-1">
-                    {/* Backend expects numeric id (Long), not UID */}
-                    <TransactionAuditTrailTab transactionId={numericId} />
+                    {/* Backend now uses UID */}
+                    <TransactionAuditTrailTab transactionId={transactionUid} />
                 </TabsContent>
             </Tabs>
         </div>

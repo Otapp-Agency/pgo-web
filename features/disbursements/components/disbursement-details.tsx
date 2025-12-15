@@ -86,21 +86,21 @@ export default function DisbursementDetails({ disbursementId }: DisbursementDeta
                 </TabsList>
 
                 <TabsContent value="overview" className="flex-1">
-                    {/* Pass numeric ID for backend API calls that expect Long type */}
+                    {/* Pass UID for backend API calls */}
                     <DisbursementOverviewTab
                         disbursement={disbursement}
-                        numericId={disbursement.id}
+                        numericId={disbursement.uid || disbursement.id}
                     />
                 </TabsContent>
 
                 <TabsContent value="processing-history" className="flex-1">
-                    {/* Backend expects numeric id (Long), not UID */}
-                    <DisbursementProcessingHistoryTab disbursementId={disbursement.id} />
+                    {/* Backend now uses UID */}
+                    <DisbursementProcessingHistoryTab disbursementId={disbursement.uid || disbursement.id} />
                 </TabsContent>
 
                 <TabsContent value="audit-trail" className="flex-1">
-                    {/* Backend expects numeric id (Long), not UID */}
-                    <DisbursementAuditTrailTab disbursementId={disbursement.id} />
+                    {/* Backend now uses UID */}
+                    <DisbursementAuditTrailTab disbursementId={disbursement.uid || disbursement.id} />
                 </TabsContent>
             </Tabs>
         </div>

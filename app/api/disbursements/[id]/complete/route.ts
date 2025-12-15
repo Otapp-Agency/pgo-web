@@ -22,11 +22,11 @@ export async function POST(
             );
         }
 
-        const { id: disbursementId } = await params;
+        const { id: disbursementUid } = await params;
 
-        if (!disbursementId?.trim()) {
+        if (!disbursementUid?.trim()) {
             return NextResponse.json(
-                { error: 'Disbursement ID is required' },
+                { error: 'Disbursement UID is required' },
                 { status: 400 }
             );
         }
@@ -36,7 +36,7 @@ export async function POST(
         const reason = body.reason || 'Manual completion';
 
         // Build the URL for complete endpoint
-        const endpoint = buildEndpointUrl.completeDisbursement(disbursementId);
+        const endpoint = buildEndpointUrl.completeDisbursement(disbursementUid);
         const url = new URL(`${API_CONFIG.baseURL}${endpoint}`);
         // Add reason as query parameter
         url.searchParams.set('reason', reason);

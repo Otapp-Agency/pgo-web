@@ -24,31 +24,17 @@ export async function GET(
             );
         }
 
-        const { id: transactionId } = await params;
+        const { id: transactionUid } = await params;
 
-        if (!transactionId?.trim()) {
+        if (!transactionUid?.trim()) {
             return NextResponse.json(
-                { error: 'Transaction ID is required' },
-                { status: 400 }
-            );
-        }
-
-        // CRITICAL: Backend /admin/v1/transactions/{id}/processing-history endpoint ONLY accepts numeric Long IDs (integer($int64))
-        // Validate that the ID is numeric (all digits)
-        const isNumericId = /^\d+$/.test(transactionId);
-
-        if (!isNumericId) {
-            return NextResponse.json(
-                {
-                    error: 'Invalid transaction ID format. The processing history endpoint requires a numeric ID (database ID), not a UID or merchant transaction ID.',
-                    details: `Received: "${transactionId}". Expected: numeric ID (e.g., "12345")`
-                },
+                { error: 'Transaction UID is required' },
                 { status: 400 }
             );
         }
 
         // Build the URL for processing history endpoint
-        const endpoint = buildEndpointUrl.transactionProcessingHistory(transactionId);
+        const endpoint = buildEndpointUrl.transactionProcessingHistory(transactionUid);
         const url = `${API_CONFIG.baseURL}${endpoint}`;
 
         console.log('[Transactions Processing History API] Fetching:', url);
