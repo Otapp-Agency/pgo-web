@@ -22,7 +22,6 @@ import {
     getCoreRowModel,
     Header,
     useReactTable,
-    VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -32,7 +31,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Disbursement, DisbursementSchema } from "@/lib/definitions"
 import { useDisbursementsTableStore } from "@/lib/stores/disbursements-table-store"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { DisbursementFilters } from "@/features/disbursements/components/disbursement-filters"
 import { exportDisbursements, ExportFormat } from "@/features/disbursements/queries/export"
 import {
@@ -169,6 +167,195 @@ function canComplete(status: string): boolean {
 
 function canCancel(status: string): boolean {
     return CANCEL_STATUSES.includes(status.toUpperCase())
+}
+
+// Table cell viewer component
+function TableCellViewer({ item, displayText }: { item: Disbursement; displayText?: string }) {
+    const isMobile = useIsMobile()
+    const textToShow = displayText || item.uid || "-"
+
+    return (
+        <Drawer direction={isMobile ? "bottom" : "right"}>
+            <DrawerTrigger asChild>
+                <Button variant="link" className="text-foreground w-fit px-0 text-left font-mono text-xs">
+                    {textToShow}
+                </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+                <DrawerHeader className="gap-1">
+                    <DrawerTitle>Disbursement Details</DrawerTitle>
+                    <DrawerDescription>
+                        Disbursement ID: {item.uid}
+                    </DrawerDescription>
+                </DrawerHeader>
+                <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+                    {/* Disbursement IDs Section */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Disbursement IDs</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">UID:</span>
+                                <span className="font-mono text-xs">{item.uid}</span>
+                            </div>
+                            {item.merchantDisbursementId && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Merchant:</span>
+                                    <span className="font-mono text-xs">{item.merchantDisbursementId}</span>
+                                </div>
+                            )}
+                            {item.pspDisbursementId && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">PSP:</span>
+                                    <span className="font-mono text-xs">{item.pspDisbursementId}</span>
+                                </div>
+                            )}
+                            {item.sourceTransactionId && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Source Transaction:</span>
+                                    <span className="font-mono text-xs">{item.sourceTransactionId}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Amount and Currency */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Amount</Label>
+                        <div className="text-2xl font-bold">
+                            {formatAmount(item.amount, item.currency)}
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Recipient Information */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Recipient Information</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Name:</span>
+                                <span>{item.recipientName || "-"}</span>
+                            </div>
+                            {item.recipientAccount && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Account:</span>
+                                    <span>{item.recipientAccount}</span>
+                                </div>
+                            )}
+                            {item.disbursementChannel && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Channel:</span>
+                                    <span>{item.disbursementChannel}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Status */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Status</Label>
+                        <Badge
+                            variant="outline"
+                            className="w-fit px-3 py-1"
+                            style={{
+                                backgroundColor: `${item.colorCode}20`,
+                                borderColor: item.colorCode,
+                                color: item.colorCode,
+                            }}
+                        >
+                            {item.status === "SUCCESS" || item.status === "COMPLETED" ? (
+                                <IconCircleCheckFilled className="mr-2 size-4" />
+                            ) : item.status === "FAILED" ? (
+                                <span className="mr-2">✕</span>
+                            ) : (
+                                <IconLoader className="mr-2 size-4" />
+                            )}
+                            {item.status}
+                        </Badge>
+                    </div>
+
+                    <Separator />
+
+                    {/* Merchant Information */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Merchant Information</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Merchant ID:</span>
+                                <span className="font-mono text-xs">{item.merchantId}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* PGO Information */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Payment Gateway</Label>
+                        <div className="rounded-lg border p-3">
+                            <div className="font-medium">{item.pgoName}</div>
+                        </div>
+                    </div>
+
+                    {/* Error Information */}
+                    {(item.status === "FAILED" || item.errorCode || item.errorMessage || item.description) && (
+                        <>
+                            <Separator />
+                            <div className="flex flex-col gap-3">
+                                <Label className="text-base font-semibold text-destructive">Error Information</Label>
+                                <div className="grid gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                                    {item.errorCode && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Error Code:</span>
+                                            <span className="font-medium text-destructive">{item.errorCode}</span>
+                                        </div>
+                                    )}
+                                    {item.errorMessage && (
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-muted-foreground">Error Message:</span>
+                                            <span className="text-destructive">{item.errorMessage}</span>
+                                        </div>
+                                    )}
+                                    {item.description && (
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-muted-foreground">Description:</span>
+                                            <span>{item.description}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    <Separator />
+
+                    {/* Timestamps */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Timestamps</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Created:</span>
+                                <span>{formatDate(item.createdAt)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Updated:</span>
+                                <span>{formatDate(item.updatedAt)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <DrawerFooter>
+                    <DrawerClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DrawerClose>
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
+    )
 }
 
 // Actions cell component
@@ -502,12 +689,7 @@ const columns: ColumnDef<Disbursement>[] = [
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="max-w-[180px]">
-                                <Link
-                                    href={`/disbursements/${uid}`}
-                                    className="text-foreground hover:underline font-mono text-xs"
-                                >
-                                    {truncatedId}
-                                </Link>
+                                <TableCellViewer item={row.original} displayText={truncatedId} />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -816,7 +998,16 @@ export function DisbursementTable({
                                             onClick={(e) => {
                                                 // Don't navigate if clicking on action buttons or checkboxes
                                                 const target = e.target as HTMLElement
-                                                if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('[role="menuitem"]')) {
+                                                if (
+                                                    target.closest('button') ||
+                                                    target.closest('[role="checkbox"]') ||
+                                                    target.closest('[role="menuitem"]') ||
+                                                    target.closest('[data-slot="drawer"]') ||
+                                                    target.closest('[data-slot="drawer-overlay"]') ||
+                                                    target.closest('[data-slot="drawer-content"]') ||
+                                                    target.closest('[data-slot="drawer-close"]') ||
+                                                    target.closest('[data-slot="drawer-portal"]')
+                                                ) {
                                                     return
                                                 }
                                                 handleRowClick(row.original)
@@ -843,12 +1034,12 @@ export function DisbursementTable({
                         </Table>
                     </div>
                 </div>
-                <div className="flex items-center justify-between px-4 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 shrink-0">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
                         {Object.keys(rowSelection).length} of{" "}
                         {paginationMeta.totalElements} row(s) selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
+                    <div className="flex w-full items-center gap-8 lg:w-fit shrink-0">
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label htmlFor="rows-per-page" className="text-sm font-medium">
                                 Rows per page
