@@ -6,6 +6,12 @@ import { transactionDetailQueryOptions } from '../queries/transactions';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { IconArrowLeft, IconLoader } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
+import TransactionOverviewTab from './transaction-overview-tab';
+import TransactionProcessingHistoryTab from './transaction-processing-history-tab';
+import TransactionAuditTrailTab from './transaction-audit-trail-tab';
 
 type Props = {
     transactionId: string;
@@ -15,16 +21,135 @@ function TransactionDetails({ transactionId }: Props) {
     const router = useRouter();
     const { data: transaction, isLoading, error } = useQuery(transactionDetailQueryOptions(transactionId));
 
-    return (
-        <ErrorBoundary fallback={<div className="px-4 lg:px-6 py-4 text-muted-foreground">Failed to load transaction details</div>}>
-            <Suspense fallback={<PageSkeleton />}>
-                <div>
-                    <h1>Transaction Details</h1>
-                    <p>Transaction ID: {transactionId}</p>
-                    <p>Transaction: {JSON.stringify(transaction)}</p>
+    if (isLoading) {
+        return (
+            <div className="@container/main flex flex-1 flex-col gap-2 py-2">
+                <div className="flex items-center gap-4 px-4 lg:px-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push('/transactions')}
+                    >
+                        <IconArrowLeft className="size-4" />
+                    </Button>
+                    <div className="flex items-center gap-2">
+                        <IconLoader className="size-4 animate-spin" />
+                        <span className="text-muted-foreground">Loading transaction details...</span>
+                    </div>
                 </div>
-            </Suspense>
-        </ErrorBoundary>
+            </div>
+        );
+    }
+
+    if (error || !transaction) {
+        return (
+            <div className="@container/main flex flex-1 flex-col gap-2 py-2">
+                <div className="flex items-center gap-4 px-4 lg:px-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push('/transactions')}
+                    >
+                        <IconArrowLeft className="size-4" />
+                    </Button>
+                    <div className="text-destructive">
+                        {error instanceof Error ? error.message : 'Failed to load transaction details'}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const formattedAmount = transaction.amount && transaction.currency
+        ? `${transaction.currency} ${parseFloat(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : 'N/A';
+
+    // Helper to check if a string is a numeric ID (all digits)
+    const isNumericId = (id: string): boolean => {
+        return /^\d+$/.test(id);
+    };
+
+    // The backend API endpoints for processing-history, audit-trail, and can-update
+    // require a numeric Long ID. The transaction.id field from the backend response
+    // should contain the numeric ID (as a string representation).
+    // 
+    // If transaction.id is not numeric, it means the backend returned a UID in the id field,
+    // which is incorrect. The backend should always return the numeric ID in the id field.
+    const numericId = transaction.id;
+
+    if (!numericId) {
+        return (
+            <div className="@container/main flex flex-1 flex-col gap-2 py-2">
+                <div className="flex items-center gap-4 px-4 lg:px-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push('/transactions')}
+                    >
+                        <IconArrowLeft className="size-4" />
+                    </Button>
+                    <div className="text-destructive">
+                        Transaction ID is missing from response
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Warn if the ID is not numeric - this indicates a backend issue
+    // The backend should return numeric ID in the id field, not UID
+    if (!isNumericId(numericId)) {
+        console.error(
+            'Transaction ID is not numeric. Backend endpoints requiring Long type will fail.',
+            'ID:', numericId,
+            'Expected: numeric ID, Got: UID or other non-numeric value'
+        );
+    }
+
+    return (
+        <div className="@container/main flex flex-1 flex-col gap-2 py-2">
+            <div className="flex items-center gap-4 px-4 lg:px-6">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push('/transactions')}
+                >
+                    <IconArrowLeft className="size-4" />
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Transaction Details</h1>
+                    <p className="text-muted-foreground">
+                        {formattedAmount} • {transaction.uid || transaction.id}
+                    </p>
+                </div>
+            </div>
+
+            <Tabs defaultValue="overview" className="flex flex-1 flex-col gap-4 px-4 lg:px-6">
+                <TabsList>
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="processing-history">Processing History</TabsTrigger>
+                    <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="flex-1">
+                    {/* Pass numeric ID for backend API calls that expect Long type */}
+                    <TransactionOverviewTab
+                        transaction={transaction}
+                        numericId={numericId}
+                    />
+                </TabsContent>
+
+                <TabsContent value="processing-history" className="flex-1">
+                    {/* Backend expects numeric id (Long), not UID */}
+                    <TransactionProcessingHistoryTab transactionId={numericId} />
+                </TabsContent>
+
+                <TabsContent value="audit-trail" className="flex-1">
+                    {/* Backend expects numeric id (Long), not UID */}
+                    <TransactionAuditTrailTab transactionId={numericId} />
+                </TabsContent>
+            </Tabs>
+        </div>
     )
 }
 

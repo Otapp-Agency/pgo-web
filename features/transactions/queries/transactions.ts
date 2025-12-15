@@ -1,6 +1,7 @@
-import { TransactionSchema, Transaction } from '@/lib/definitions';
+import { TransactionSchema, Transaction, ProcessingHistoryEntry, AuditTrailEntry, CanUpdateResponse } from '@/lib/definitions';
 import { z } from 'zod';
 import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
+import { useQuery } from '@tanstack/react-query';
 
 /**
  * Paginated response type for transactions
@@ -26,6 +27,9 @@ export const transactionsKeys = {
         params ? [...transactionsKeys.lists(), params] as const : [...transactionsKeys.lists()] as const,
     details: () => [...transactionsKeys.all, 'detail'] as const,
     detail: (id: string) => [...transactionsKeys.details(), id] as const,
+    processingHistory: (id: string) => [...transactionsKeys.detail(id), 'processing-history'] as const,
+    auditTrail: (id: string) => [...transactionsKeys.detail(id), 'audit-trail'] as const,
+    canUpdate: (id: string) => [...transactionsKeys.detail(id), 'can-update'] as const,
 };
 
 export interface TransactionListParams {
@@ -100,7 +104,7 @@ export function transactionsListQueryOptions(
                 if (useSearchEndpoint) {
                     // Use search endpoint with POST
                     fullUrl = `${window.location.origin}/api/transactions/search?page=${page}&per_page=${per_page}`;
-                    
+
                     // Build search criteria from filters
                     const searchCriteria: Record<string, unknown> = {
                         searchTerm: normalizedParams.search,
@@ -374,5 +378,142 @@ export async function cancelTransaction(
 
     const data = await response.json();
     return data;
+}
+
+/**
+ * Client-side query options for processing history
+ */
+export function processingHistoryQueryOptions(transactionId: string) {
+    const url = `/api/transactions/${transactionId}/processing-history`;
+
+    return {
+        queryKey: transactionsKeys.processingHistory(transactionId),
+        queryFn: async (): Promise<ProcessingHistoryEntry[]> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('processingHistoryQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch processing history'
+                );
+            }
+
+            // API route transforms data to match ProcessingHistoryEntry format
+            const responseData = await response.json();
+            return responseData as ProcessingHistoryEntry[];
+        },
+        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+        enabled: !!transactionId,
+    };
+}
+
+/**
+ * Hook to fetch processing history
+ */
+export function useProcessingHistory(transactionId: string) {
+    return useQuery(processingHistoryQueryOptions(transactionId));
+}
+
+/**
+ * Client-side query options for audit trail
+ */
+export function auditTrailQueryOptions(transactionId: string) {
+    const url = `/api/transactions/${transactionId}/audit-trail`;
+
+    return {
+        queryKey: transactionsKeys.auditTrail(transactionId),
+        queryFn: async (): Promise<AuditTrailEntry[]> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('auditTrailQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to fetch audit trail'
+                );
+            }
+
+            // API route transforms data to match AuditTrailEntry format
+            const responseData = await response.json();
+            return responseData as AuditTrailEntry[];
+        },
+        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
+        enabled: !!transactionId,
+    };
+}
+
+/**
+ * Hook to fetch audit trail
+ */
+export function useAuditTrail(transactionId: string) {
+    return useQuery(auditTrailQueryOptions(transactionId));
+}
+
+/**
+ * Client-side query options for can-update check
+ */
+export function canUpdateQueryOptions(transactionId: string) {
+    const url = `/api/transactions/${transactionId}/can-update`;
+
+    return {
+        queryKey: transactionsKeys.canUpdate(transactionId),
+        queryFn: async (): Promise<CanUpdateResponse> => {
+            let fullUrl: string;
+            if (typeof window !== 'undefined') {
+                fullUrl = `${window.location.origin}${url}`;
+            } else {
+                throw new Error('canUpdateQueryOptions should only be used client-side');
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error || errorData.message || 'Failed to check if transaction can be updated'
+                );
+            }
+
+            const responseData = await response.json();
+            return responseData as CanUpdateResponse;
+        },
+        staleTime: 30 * 1000, // 30 seconds - shorter stale time since this can change
+        enabled: !!transactionId,
+    };
+}
+
+/**
+ * Hook to check if transaction can be updated
+ */
+export function useCanUpdate(transactionId: string) {
+    return useQuery(canUpdateQueryOptions(transactionId));
 }
 

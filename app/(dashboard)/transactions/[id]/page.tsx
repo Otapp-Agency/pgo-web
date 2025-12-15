@@ -10,17 +10,17 @@ import { prefetchTransactionDetail } from '@/features/transactions/queries/serve
 export default async function TransactionDetailPage({
     params,
 }: {
-    params: Promise<{ internalTransactionId: string }>;
+    params: Promise<{ id: string }>;
 }) {
     await requireAnyPermission([PERMISSIONS.TRANSACTIONS.VIEW]);
-    const { internalTransactionId } = await params;
-    await prefetchTransactionDetail(internalTransactionId);
+    const { id } = await params;
+    await prefetchTransactionDetail(id);
 
     return (
         <HydrateClient>
             <ErrorBoundary fallback={<div className="px-4 lg:px-6 py-4 text-muted-foreground">Failed to load transaction details</div>}>
                 <Suspense fallback={<PageSkeleton />}>
-                    <TransactionDetails transactionId={internalTransactionId} />
+                    <TransactionDetails transactionId={id} />
                 </Suspense>
             </ErrorBoundary>
         </HydrateClient>
