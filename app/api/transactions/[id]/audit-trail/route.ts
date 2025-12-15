@@ -142,6 +142,7 @@ export async function GET(
                 // Plain string - convert to object
                 // Try to extract action from string format "ACTION: details"
                 const colonIndex = entry.indexOf(':');
+                // Only extract action if colon is in first 50 chars (prevents treating descriptions with colons as actions)
                 if (colonIndex > 0 && colonIndex < 50) {
                     const action = entry.substring(0, colonIndex).trim().toUpperCase();
                     const details = entry.substring(colonIndex + 1).trim();

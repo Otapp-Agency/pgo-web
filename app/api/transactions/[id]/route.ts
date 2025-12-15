@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
-import { buildEndpointUrl } from '@/lib/config/endpoints';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ uid: string }> }
 ) {
     try {
         // Get session for authentication
@@ -18,32 +17,17 @@ export async function GET(
             );
         }
 
-        const { id: transactionId } = await params;
+        const { uid } = await params;
 
-        if (!transactionId?.trim()) {
+        if (!uid?.trim()) {
             return NextResponse.json(
-                { error: 'Transaction ID is required' },
+                { error: 'Transaction UID is required' },
                 { status: 400 }
             );
         }
 
-        // CRITICAL: Backend /admin/v1/transactions/{id} endpoint ONLY accepts numeric Long IDs (integer($int64))
-        // Unlike disbursements which have both getById and getByUid endpoints, transactions only have getById
-        // Validate that the ID is numeric (all digits)
-        const isNumericId = /^\d+$/.test(transactionId);
-
-        if (!isNumericId) {
-            return NextResponse.json(
-                {
-                    error: 'Invalid transaction ID format. The transaction detail endpoint requires a numeric ID (database ID), not a UID or merchant transaction ID.',
-                    details: `Received: "${transactionId}". Expected: numeric ID (e.g., "12345")`
-                },
-                { status: 400 }
-            );
-        }
-
-        // Build the URL with numeric transaction ID
-        const endpoint = buildEndpointUrl.transactionById(transactionId);
+        // Build the URL with transaction UID
+        const endpoint = API_ENDPOINTS.transactions.getByUid.replace("{uid}", uid);
         const url = `${API_CONFIG.baseURL}${endpoint}`;
 
         // Fetch from backend API
