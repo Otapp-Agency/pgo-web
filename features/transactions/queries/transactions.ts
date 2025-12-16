@@ -1,7 +1,159 @@
 import { TransactionSchema, Transaction, ProcessingHistoryEntry, AuditTrailEntry, CanUpdateResponse } from '@/lib/definitions';
-import { z } from 'zod';
 import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
 import { useQuery } from '@tanstack/react-query';
+import axios from "axios";
+
+/**
+ * Prefetches the transactions list from the internal API, aligning with the filters/structure used in app/api/transactions/route.ts.
+ * All arguments are optional. Arguments with undefined/null/empty will be ignored in query string.
+ */
+export async function getTransactionsList(
+    page?: number,
+    per_page?: number,
+    status?: string,
+    start_date?: string,
+    end_date?: string,
+    amount_min?: number,
+    amount_max?: number,
+    search?: string,
+    sort?: string[]
+) {
+    // Construct query params as in route.ts
+    const queryParams = new URLSearchParams();
+
+    // Always set page and per_page if provided (default to 1 and 15)
+    queryParams.set('page', (page ?? 1).toString());
+    queryParams.set('per_page', (per_page ?? 15).toString());
+
+    // Only set if provided
+    if (status) queryParams.set('status', status);
+    if (start_date) queryParams.set('start_date', start_date);
+    if (end_date) queryParams.set('end_date', end_date);
+    if (typeof amount_min === 'number') queryParams.set('amount_min', amount_min.toString());
+    if (typeof amount_max === 'number') queryParams.set('amount_max', amount_max.toString());
+    if (search) queryParams.set('search', search);
+    if (sort && Array.isArray(sort) && sort.length > 0) {
+        // Join multiple sort fields with semicolon, matches backend and client usage
+        queryParams.set('sort', sort.join(';'));
+    }
+
+    // Build full API URL (using the canonical /api/transactions endpoint, NOT /search)
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions?${queryParams.toString()}`;
+
+    // Use axios to fetch the data
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+
+    return res.data;
+};
+
+
+
+export async function getTransactionDetail(transactionUid: string) {
+    console.log('transactionUid', transactionUid);
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions/${transactionUid}`;
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    console.log('res', res.data);
+    return res.data;
+};
+
+export async function getTransactionProcessingHistory(transactionUid: string) {
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions/${transactionUid}/processing-history`;
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    return res.data;
+};
+
+export async function getTransactionAuditTrail(transactionUid: string) {
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions/${transactionUid}/audit-trail`;
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    return res.data;
+};
+
+export async function getTransactionCanUpdate(transactionUid: string) {
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions/${transactionUid}/can-update`;
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    return res.data;
+};
+
+/**
+ * Fetches transaction volume statistics from the internal API.
+ * @param start_date - Start date in YYYY-MM-DD format (required)
+ * @param end_date - End date in YYYY-MM-DD format (required)
+ * @param merchantId - Optional merchant ID filter
+ * @param gatewayId - Optional gateway ID filter
+ */
+export async function getTransactionStats(
+    start_date: string,
+    end_date: string,
+    merchantId?: string,
+    gatewayId?: string
+) {
+    const queryParams = new URLSearchParams();
+    queryParams.set('start_date', start_date);
+    queryParams.set('end_date', end_date);
+
+    // Add optional filters
+    if (merchantId) {
+        queryParams.set('merchantId', merchantId);
+    }
+    if (gatewayId) {
+        queryParams.set('gatewayId', gatewayId);
+    }
+
+    const url = `${process.env.NEXT_PUBLIC_URL}/api/transactions/stats?${queryParams.toString()}`;
+    const res = await axios.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    return res.data;
+};
+
+
+/**
+ * Helper function to convert year/month to start_date/end_date format
+ * @param year - Year (e.g., 2024)
+ * @param month - Month (1-12), if not provided, uses the entire year
+ * @returns Object with start_date and end_date in YYYY-MM-DD format
+ */
+function convertYearMonthToDateRange(year: number, month?: number): { start_date: string; end_date: string } {
+    if (month !== undefined && month !== null) {
+        // Specific month: get first and last day of the month
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0); // Last day of the month
+
+        const start_date = startDate.toISOString().split('T')[0];
+        const end_date = endDate.toISOString().split('T')[0];
+
+        return { start_date, end_date };
+    } else {
+        // Entire year: January 1 to December 31
+        const start_date = `${year}-01-01`;
+        const end_date = `${year}-12-31`;
+
+        return { start_date, end_date };
+    }
+}
+
 
 /**
  * Paginated response type for transactions
@@ -26,10 +178,10 @@ export const transactionsKeys = {
     list: (params?: TransactionListParams) =>
         params ? [...transactionsKeys.lists(), params] as const : [...transactionsKeys.lists()] as const,
     details: () => [...transactionsKeys.all, 'detail'] as const,
-    detail: (id: string) => [...transactionsKeys.details(), id] as const,
-    processingHistory: (id: string) => [...transactionsKeys.detail(id), 'processing-history'] as const,
-    auditTrail: (id: string) => [...transactionsKeys.detail(id), 'audit-trail'] as const,
-    canUpdate: (id: string) => [...transactionsKeys.detail(id), 'can-update'] as const,
+    detail: (uid: string) => [...transactionsKeys.details(), uid] as const,
+    processingHistory: (uid: string) => [...transactionsKeys.detail(uid), 'processing-history'] as const,
+    auditTrail: (uid: string) => [...transactionsKeys.detail(uid), 'audit-trail'] as const,
+    canUpdate: (uid: string) => [...transactionsKeys.detail(uid), 'can-update'] as const,
 };
 
 export interface TransactionListParams {
@@ -71,199 +223,6 @@ export function normalizeTransactionParams(params: TransactionListParams): Trans
     return normalized;
 }
 
-/**
- * Client-side query options for paginated transactions list
- * Returns paginated response with metadata (pageNumber, pageSize, totalElements, totalPages, etc.)
- * Uses 1-based pagination
- */
-export function transactionsListQueryOptions(
-    params: TransactionListParams = { page: PAGINATION.DEFAULT_PAGE, per_page: PAGINATION.DEFAULT_PAGE_SIZE }
-) {
-    // Normalize params to ensure consistent query keys
-    const normalizedParams = normalizeTransactionParams(params);
-
-    // Ensure page and per_page have defaults (1-based pagination)
-    const page = normalizedParams.page ?? PAGINATION.DEFAULT_PAGE;
-    const per_page = normalizedParams.per_page ?? PAGINATION.DEFAULT_PAGE_SIZE;
-
-    // Check if we should use search endpoint (when search term is provided)
-    const useSearchEndpoint = !!normalizedParams.search && normalizedParams.search.trim().length > 0;
-
-    // Query key uses normalized params to ensure consistent caching
-    const queryKey = transactionsKeys.list(normalizedParams);
-
-    return {
-        queryKey,
-        queryFn: async (): Promise<PaginatedTransactionResponse> => {
-            // Use absolute URL - construct it based on environment
-            let fullUrl: string;
-            let requestOptions: RequestInit;
-
-            if (typeof window !== 'undefined') {
-                // Client-side: use window.location.origin
-                if (useSearchEndpoint) {
-                    // Use search endpoint with POST
-                    fullUrl = `${window.location.origin}/api/transactions/search?page=${page}&per_page=${per_page}`;
-
-                    // Build search criteria from filters
-                    const searchCriteria: Record<string, unknown> = {
-                        searchTerm: normalizedParams.search,
-                    };
-
-                    // Add other filters to search criteria if present
-                    if (normalizedParams.status) {
-                        searchCriteria.status = normalizedParams.status;
-                    }
-                    if (normalizedParams.start_date) {
-                        searchCriteria.createdFrom = `${normalizedParams.start_date}T00:00:00`;
-                    }
-                    if (normalizedParams.end_date) {
-                        searchCriteria.createdTo = `${normalizedParams.end_date}T23:59:59`;
-                    }
-                    if (normalizedParams.amount_min) {
-                        searchCriteria.minAmount = normalizedParams.amount_min;
-                    }
-                    if (normalizedParams.amount_max) {
-                        searchCriteria.maxAmount = normalizedParams.amount_max;
-                    }
-                    if (normalizedParams.sort && normalizedParams.sort.length > 0) {
-                        // Parse sort array to extract sortBy and sortDirection
-                        const firstSort = normalizedParams.sort[0];
-                        const [sortBy, sortDirection] = firstSort.split(',');
-                        if (sortBy) searchCriteria.sortBy = sortBy;
-                        if (sortDirection) searchCriteria.sortDirection = sortDirection.toUpperCase();
-                    }
-
-                    requestOptions = {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(searchCriteria),
-                    };
-                } else {
-                    // Use regular list endpoint with GET
-                    const queryParams = new URLSearchParams();
-                    queryParams.set('page', page.toString());
-                    queryParams.set('per_page', per_page.toString());
-
-                    Object.entries(normalizedParams).forEach(([key, value]) => {
-                        // Skip page and per_page as they're already set
-                        if (key === 'sort' && Array.isArray(value) && value.length > 0) {
-                            // Handle multiple sort parameters - backend expects semicolon-separated
-                            queryParams.set('sort', value.join(';'));
-                        } else if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
-                            queryParams.set(key, value.toString());
-                        }
-                    });
-
-                    fullUrl = `${window.location.origin}/api/transactions?${queryParams.toString()}`;
-                    requestOptions = {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    };
-                }
-            } else {
-                // Server-side: this shouldn't happen if prefetch worked
-                console.warn('QueryFn executed on server - prefetch may have failed');
-                return {
-                    data: [],
-                    pageNumber: page,
-                    pageSize: per_page,
-                    totalElements: 0,
-                    totalPages: 0,
-                    last: true,
-                    first: true,
-                };
-            }
-
-            const response = await fetch(fullUrl, requestOptions);
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.error || errorData.message || 'Failed to fetch transactions'
-                );
-            }
-
-            const responseData = await response.json();
-
-            // Handle both array response (legacy) and paginated response
-            let paginatedResponse: PaginatedTransactionResponse;
-
-            if (Array.isArray(responseData)) {
-                // Legacy format: just an array
-                const parsed = z.array(TransactionSchema).parse(responseData);
-
-                paginatedResponse = {
-                    data: parsed,
-                    pageNumber: page,
-                    pageSize: per_page,
-                    totalElements: parsed.length,
-                    totalPages: Math.ceil(parsed.length / per_page),
-                    last: true,
-                    first: page === 1,
-                };
-            } else {
-                // Paginated response format (already transformed by API route)
-                const parsed = z.array(TransactionSchema).parse(responseData.data || []);
-
-                paginatedResponse = {
-                    data: parsed,
-                    pageNumber: responseData.pageNumber ?? page,
-                    pageSize: responseData.pageSize ?? per_page,
-                    totalElements: responseData.totalElements ?? parsed.length,
-                    totalPages: responseData.totalPages ?? Math.ceil((responseData.totalElements ?? parsed.length) / (responseData.pageSize ?? per_page)),
-                    last: responseData.last ?? false,
-                    first: responseData.first ?? (page === 1),
-                };
-            }
-
-            return paginatedResponse;
-        },
-        staleTime: QUERY_CACHE.STALE_TIME_LIST,
-        placeholderData: (previousData: PaginatedTransactionResponse | undefined) => previousData,
-    };
-}
-
-/**
- * Client-side query options for single transaction detail
- */
-export function transactionDetailQueryOptions(transactionId: string) {
-    const url = `/api/transactions/${transactionId}`;
-
-    return {
-        queryKey: transactionsKeys.detail(transactionId),
-        queryFn: async (): Promise<Transaction> => {
-            let fullUrl: string;
-            if (typeof window !== 'undefined') {
-                fullUrl = `${window.location.origin}${url}`;
-            } else {
-                throw new Error('transactionDetailQueryOptions should only be used client-side');
-            }
-
-            const response = await fetch(fullUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.error || errorData.message || 'Failed to fetch transaction'
-                );
-            }
-
-            const responseData = await response.json();
-            return TransactionSchema.parse(responseData);
-        },
-        staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
-    };
-}
 
 /**
  * Response type for transaction action mutations

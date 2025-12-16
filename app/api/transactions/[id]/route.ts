@@ -4,7 +4,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ uid: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Get session for authentication
@@ -17,7 +17,9 @@ export async function GET(
             );
         }
 
-        const { uid } = await params;
+        const { id } = await params;
+        // Use id as uid for backend API call (the route parameter is the transaction UID)
+        const uid = id;
 
         if (!uid?.trim()) {
             return NextResponse.json(
@@ -25,6 +27,8 @@ export async function GET(
                 { status: 400 }
             );
         }
+
+        console.log('uid', uid);
 
         // Build the URL with transaction UID
         const endpoint = API_ENDPOINTS.transactions.getByUid.replace("{uid}", uid);

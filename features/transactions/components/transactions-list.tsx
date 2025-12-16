@@ -2,8 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { TransactionTable } from './transaction-table';
-import { transactionsListQueryOptions, TransactionListParams } from '@/features/transactions/queries/transactions';
+import { TransactionListParams, transactionsKeys, normalizeTransactionParams } from '@/features/transactions/queries/transactions';
 import { useTransactionsTableStore } from '@/lib/stores/transactions-table-store';
+import { QUERY_CACHE } from '@/lib/config/constants';
+import { getTransactionsList } from '@/features/transactions/queries/transactions';
 
 export default function TransactionsList() {
     // Get filter state from store
@@ -22,12 +24,28 @@ export default function TransactionsList() {
         amount_max: filters.amountMax || undefined,
         search: filters.search || undefined,
         // Sorting: convert TanStack sorting format to API sort format
-        sort: sorting.length > 0 
+        sort: sorting.length > 0
             ? sorting.map(s => `${s.id},${s.desc ? 'desc' : 'asc'}`)
             : undefined,
     };
 
-    const { data, isLoading, isFetching } = useQuery(transactionsListQueryOptions(queryParams));
+    const normalizedParams = normalizeTransactionParams(queryParams);
+
+    const queryOptions = {
+        queryKey: transactionsKeys.list(normalizedParams),
+        queryFn: () => getTransactionsList(
+            normalizedParams.page,
+            normalizedParams.per_page,
+            normalizedParams.status,
+            normalizedParams.start_date,
+            normalizedParams.end_date,
+            normalizedParams.amount_min ? Number(normalizedParams.amount_min) : undefined,
+            normalizedParams.amount_max ? Number(normalizedParams.amount_max) : undefined,
+            normalizedParams.search, normalizedParams.sort),
+        staleTime: QUERY_CACHE.STALE_TIME_LIST,
+    };
+
+    const { data, isLoading, isFetching } = useQuery(queryOptions);
 
     // Extract transactions and pagination meta from response
     const transactions = data?.data ?? [];
@@ -42,10 +60,10 @@ export default function TransactionsList() {
 
     return (
         <div className="@container/main flex flex-1 flex-col gap-2 py-2">
-            <TransactionTable 
-                data={transactions} 
+            <TransactionTable
+                data={transactions}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching} 
+                isLoading={isLoading || isFetching}
             />
         </div>
     );

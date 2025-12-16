@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/collapsible';
 import { MonthlySummaryCards } from './monthly-summary-cards';
 import {
-    monthlyTransactionSummaryQueryOptions,
+    transactionStatsQueryOptions,
     getCurrentPeriod,
 } from '@/features/transactions/queries/reports';
 import { merchantsListQueryOptions } from '@/features/merchants/queries/merchants';
@@ -52,6 +52,103 @@ function getYearOptions(): { value: string; label: string }[] {
     return years;
 }
 
+/**
+ * Transform daily stats response to MonthlyTransactionSummary format
+ * Handles different possible response structures from the stats API
+ */
+function transformStatsToSummary(
+    statsData: any,
+    year: number,
+    month: number
+): import('@/lib/definitions').MonthlyTransactionSummary | undefined {
+    if (!statsData) return undefined;
+
+    // Handle API response wrapper (if data is nested)
+    const data = statsData.data || statsData;
+
+    // If data is an array (daily stats), aggregate it
+    if (Array.isArray(data)) {
+        // Aggregate daily stats into monthly summary
+        let totalTransactions = 0;
+        let totalValue = 0;
+        const statusBreakdown: Record<string, { count: number; value: number }> = {};
+        const pgoBreakdown: Record<string, { count: number; value: number }> = {};
+        const methodBreakdown: Record<string, { count: number; value: number }> = {};
+        let currency = 'USD'; // Default currency
+
+        data.forEach((day: any) => {
+            // Aggregate totals
+            totalTransactions += day.totalTransactions || day.count || day.transactionCount || 0;
+            totalValue += day.totalValue || day.amount || day.value || 0;
+
+            // Extract currency if available
+            if (day.currency) currency = day.currency;
+
+            // Aggregate status breakdown
+            if (day.statusBreakdown || day.status_breakdown) {
+                const breakdown = day.statusBreakdown || day.status_breakdown;
+                Object.entries(breakdown).forEach(([status, item]: [string, any]) => {
+                    if (!statusBreakdown[status]) {
+                        statusBreakdown[status] = { count: 0, value: 0 };
+                    }
+                    statusBreakdown[status].count += item.count || 0;
+                    statusBreakdown[status].value += item.value || item.amount || 0;
+                });
+            }
+
+            // Aggregate PGO breakdown
+            if (day.pgoBreakdown || day.pgo_breakdown || day.gatewayBreakdown || day.gateway_breakdown) {
+                const breakdown = day.pgoBreakdown || day.pgo_breakdown || day.gatewayBreakdown || day.gateway_breakdown;
+                Object.entries(breakdown).forEach(([pgo, item]: [string, any]) => {
+                    if (!pgoBreakdown[pgo]) {
+                        pgoBreakdown[pgo] = { count: 0, value: 0 };
+                    }
+                    pgoBreakdown[pgo].count += item.count || 0;
+                    pgoBreakdown[pgo].value += item.value || item.amount || 0;
+                });
+            }
+
+            // Aggregate method breakdown
+            if (day.methodBreakdown || day.method_breakdown || day.paymentMethodBreakdown || day.payment_method_breakdown) {
+                const breakdown = day.methodBreakdown || day.method_breakdown || day.paymentMethodBreakdown || day.payment_method_breakdown;
+                Object.entries(breakdown).forEach(([method, item]: [string, any]) => {
+                    if (!methodBreakdown[method]) {
+                        methodBreakdown[method] = { count: 0, value: 0 };
+                    }
+                    methodBreakdown[method].count += item.count || 0;
+                    methodBreakdown[method].value += item.value || item.amount || 0;
+                });
+            }
+        });
+
+        return {
+            report_period: `${year}-${month.toString().padStart(2, '0')}`,
+            total_transactions: totalTransactions,
+            total_value: totalValue,
+            currency: currency,
+            status_breakdown: statusBreakdown,
+            pgo_breakdown: pgoBreakdown,
+            method_breakdown: methodBreakdown,
+        };
+    }
+
+    // If data is already in summary format, return it
+    if (data.total_transactions !== undefined || data.totalTransactions !== undefined) {
+        return {
+            report_period: data.report_period || `${year}-${month.toString().padStart(2, '0')}`,
+            total_transactions: data.total_transactions || data.totalTransactions || 0,
+            total_value: data.total_value || data.totalValue || 0,
+            currency: data.currency || 'USD',
+            status_breakdown: data.status_breakdown || data.statusBreakdown || {},
+            pgo_breakdown: data.pgo_breakdown || data.pgoBreakdown || data.gateway_breakdown || data.gatewayBreakdown || {},
+            method_breakdown: data.method_breakdown || data.methodBreakdown || data.payment_method_breakdown || data.paymentMethodBreakdown || {},
+        };
+    }
+
+    // If structure is unknown, return undefined
+    return undefined;
+}
+
 export function MonthlySummarySection() {
     const [isOpen, setIsOpen] = useState(true);
     const currentPeriod = getCurrentPeriod();
@@ -75,12 +172,12 @@ export function MonthlySummarySection() {
         return params;
     }, [selectedYear, selectedMonth, selectedMerchant]);
 
-    // Fetch monthly summary
+    // Fetch transaction stats (daily stats)
     const {
-        data: summaryData,
-        isLoading: isSummaryLoading,
-        isFetching: isSummaryFetching,
-    } = useQuery(monthlyTransactionSummaryQueryOptions(queryParams));
+        data: statsData,
+        isLoading: isStatsLoading,
+        isFetching: isStatsFetching,
+    } = useQuery(transactionStatsQueryOptions(queryParams));
 
     // Fetch merchants for filter dropdown
     const { data: merchantsData, isLoading: isMerchantsLoading } = useQuery(
@@ -90,9 +187,11 @@ export function MonthlySummarySection() {
     const merchants = merchantsData?.data ?? [];
 
     // Format the report period for display
-    const reportPeriodDisplay = summaryData?.report_period
-        ? summaryData.report_period
-        : `${selectedYear}-${selectedMonth.padStart(2, '0')}`;
+    const reportPeriodDisplay = `${selectedYear}-${selectedMonth.padStart(2, '0')}`;
+
+    // Transform stats data to match MonthlyTransactionSummary format if needed
+    // The stats API returns daily stats, so we may need to aggregate or transform
+    const summaryData = statsData ? transformStatsToSummary(statsData, parseInt(selectedYear, 10), parseInt(selectedMonth, 10)) : undefined;
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen} className="px-4 lg:px-6">
@@ -172,7 +271,7 @@ export function MonthlySummarySection() {
             <CollapsibleContent className="pb-4">
                 <MonthlySummaryCards
                     data={summaryData}
-                    isLoading={isSummaryLoading || isSummaryFetching}
+                    isLoading={isStatsLoading || isStatsFetching}
                 />
             </CollapsibleContent>
         </Collapsible>

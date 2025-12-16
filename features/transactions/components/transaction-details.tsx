@@ -2,10 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import React, { Suspense } from 'react'
-import { transactionDetailQueryOptions } from '../queries/transactions';
+import { getTransactionDetail } from '../queries/transactions';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { TransactionDetailsSkeleton } from './transaction-details-skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { IconArrowLeft, IconLoader } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
@@ -19,26 +19,13 @@ type Props = {
 
 function TransactionDetails({ transactionId }: Props) {
     const router = useRouter();
-    const { data: transaction, isLoading, error } = useQuery(transactionDetailQueryOptions(transactionId));
+    const { data: transaction, isLoading, error } = useQuery({
+        queryKey: ['transaction', transactionId],
+        queryFn: () => getTransactionDetail(transactionId),
+    });
 
     if (isLoading) {
-        return (
-            <div className="@container/main flex flex-1 flex-col gap-2 py-2">
-                <div className="flex items-center gap-4 px-4 lg:px-6">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.push('/transactions')}
-                    >
-                        <IconArrowLeft className="size-4" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <IconLoader className="size-4 animate-spin" />
-                        <span className="text-muted-foreground">Loading transaction details...</span>
-                    </div>
-                </div>
-            </div>
-        );
+        return <TransactionDetailsSkeleton />;
     }
 
     if (error || !transaction) {

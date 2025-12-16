@@ -1,5 +1,6 @@
 import 'server-only';
-import { transactionsKeys, normalizeTransactionParams, type TransactionListParams, type PaginatedTransactionResponse } from './transactions';
+
+import { transactionsKeys, normalizeTransactionParams, type TransactionListParams, type PaginatedTransactionResponse, getTransactionsList, getTransactionDetail, getTransactionStats } from './transactions';
 import { reportsKeys, normalizeReportParams, getCurrentPeriod } from './reports';
 import {
     TransactionSchema,
@@ -16,167 +17,7 @@ import { PAGINATION, QUERY_CACHE } from '@/lib/config/constants';
 export { getQueryClient, HydrateClient } from '@/lib/server-query-client';
 import { getQueryClient } from '@/lib/server-query-client';
 
-/**
- * Server-side function to fetch paginated transactions list
- * Uses getSession() for authentication
- * This function is server-only and should not be imported in client components
- */
-async function fetchTransactionsListServer(
-    params: TransactionListParams = { page: PAGINATION.DEFAULT_PAGE, per_page: PAGINATION.DEFAULT_PAGE_SIZE }
-): Promise<PaginatedTransactionResponse> {
-    const session = await getSession();
-
-    if (!session?.token) {
-        throw new Error('Unauthorized: No session token available');
-    }
-
-    // Build query string with pagination params
-    // Backend API uses 'size' instead of 'per_page' and 0-based pagination
-    const page = params.page ?? PAGINATION.DEFAULT_PAGE;
-    const per_page = params.per_page ?? PAGINATION.DEFAULT_PAGE_SIZE;
-    const queryParams = new URLSearchParams();
-
-    // Convert 1-based to 0-based for backend
-    queryParams.set('page', (page - 1).toString());
-    queryParams.set('size', per_page.toString());
-
-    // Add other filter params if present
-    if (params) {
-        Object.entries(params).forEach(([key, value]) => {
-            if (key !== 'page' && key !== 'per_page' && value !== undefined && value !== null && value !== '') {
-                if (key === 'sort' && Array.isArray(value)) {
-                    queryParams.set('sort', value.join(','));
-                } else {
-                    queryParams.set(key, value.toString());
-                }
-            }
-        });
-    }
-
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.list}?${queryParams.toString()}`;
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.token}`,
-        },
-        cache: 'no-store',
-    });
-
-    if (!response.ok) {
-        let errorMessage = 'Failed to fetch transactions';
-
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-            errorMessage = response.statusText || errorMessage;
-        }
-
-        if (response.status === 401) {
-            throw new Error(`Unauthorized: ${errorMessage}`);
-        } else if (response.status === 403) {
-            throw new Error(`Forbidden: ${errorMessage}`);
-        } else if (response.status === 404) {
-            throw new Error(`Not Found: ${errorMessage}`);
-        }
-
-        throw new Error(`${errorMessage} (Status: ${response.status})`);
-    }
-
-    const responseData = await response.json();
-
-    // Handle both array response (legacy) and paginated response
-    let paginatedResponse: PaginatedTransactionResponse;
-
-    if (Array.isArray(responseData)) {
-        // Legacy format: just an array
-        const parsed = z.array(TransactionSchema).parse(responseData);
-
-        paginatedResponse = {
-            data: parsed,
-            pageNumber: page,
-            pageSize: per_page,
-            totalElements: parsed.length,
-            totalPages: Math.ceil(parsed.length / per_page),
-            last: true,
-            first: page === 1,
-        };
-    } else {
-        // Paginated response format
-        const transactionsData = responseData.data || [];
-        const parsed = z.array(TransactionSchema).parse(transactionsData);
-
-        // Backend uses 0-based, convert to 1-based
-        const backendPageNumber = responseData.pageNumber ?? 0;
-
-        paginatedResponse = {
-            data: parsed,
-            pageNumber: backendPageNumber + 1,
-            pageSize: responseData.pageSize ?? per_page,
-            totalElements: responseData.totalElements ?? parsed.length,
-            totalPages: responseData.totalPages ?? Math.ceil((responseData.totalElements ?? parsed.length) / (responseData.pageSize ?? per_page)),
-            last: responseData.last ?? false,
-            first: backendPageNumber === 0,
-        };
-    }
-
-    return paginatedResponse;
-}
-
-/**
- * Server-side function to fetch single transaction details
- */
-async function fetchTransactionDetailServer(transactionUid: string) {
-    const session = await getSession();
-
-    if (!session?.token) {
-        throw new Error('Unauthorized: No session token available');
-    }
-
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.transactions.getByUid.replace('{uid}', transactionUid)}`;
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.token}`,
-        },
-        cache: 'no-store',
-    });
-
-    if (!response.ok) {
-        let errorMessage = 'Failed to fetch transaction';
-
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-            errorMessage = response.statusText || errorMessage;
-        }
-
-        if (response.status === 401) {
-            throw new Error(`Unauthorized: ${errorMessage}`);
-        } else if (response.status === 403) {
-            throw new Error(`Forbidden: ${errorMessage}`);
-        } else if (response.status === 404) {
-            throw new Error(`Not Found: ${errorMessage}`);
-        }
-
-        throw new Error(`${errorMessage} (Status: ${response.status})`);
-    }
-
-    const responseData = await response.json();
-    return TransactionSchema.parse(responseData.data || responseData);
-}
-
-/**
- * Prefetch first page of transactions list on the server
- * This will populate the TanStack Query cache with the initial page
- * Client-side will dynamically prefetch the next pages based on current page
- */
-export async function prefetchTransactionsList() {
+export async function prefetchTransactionsListServer() {
     const queryClient = getQueryClient();
 
     // Prefetch only the first page on server (1-based pagination)
@@ -187,7 +28,7 @@ export async function prefetchTransactionsList() {
 
     const queryOptions = {
         queryKey: transactionsKeys.list(normalizedParams),
-        queryFn: () => fetchTransactionsListServer(normalizedParams),
+        queryFn: () => getTransactionsList(normalizedParams.page, normalizedParams.per_page, normalizedParams.status, normalizedParams.start_date, normalizedParams.end_date, normalizedParams.amount_min ? Number(normalizedParams.amount_min) : undefined, normalizedParams.amount_max ? Number(normalizedParams.amount_max) : undefined, normalizedParams.search, normalizedParams.sort),
         staleTime: QUERY_CACHE.STALE_TIME_LIST,
     };
 
@@ -204,90 +45,50 @@ export async function prefetchTransactionsList() {
 /**
  * Prefetch a single transaction detail
  */
-export async function prefetchTransactionDetail(transactionId: string) {
+export async function prefetchTransactionDetail(transactionUid: string) {
     const queryClient = getQueryClient();
 
     const queryOptions = {
-        queryKey: transactionsKeys.detail(transactionId),
-        queryFn: () => fetchTransactionDetailServer(transactionId),
+        queryKey: transactionsKeys.detail(transactionUid),
+        queryFn: () => getTransactionDetail(transactionUid),
         staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
     };
 
     await queryClient.prefetchQuery(queryOptions);
 }
 
+
 /**
- * Server-side function to fetch monthly transaction summary
- * Uses getSession() for authentication
+ * Helper function to convert year/month to start_date/end_date format
+ * @param year - Year (e.g., 2024)
+ * @param month - Month (1-12), if not provided, uses the entire year
+ * @returns Object with start_date and end_date in YYYY-MM-DD format
  */
-async function fetchMonthlyTransactionSummaryServer(
-    params: MonthlyTransactionSummaryParams
-): Promise<MonthlyTransactionSummary> {
-    const session = await getSession();
+function convertYearMonthToDateRange(year: number, month?: number): { start_date: string; end_date: string } {
+    if (month !== undefined && month !== null) {
+        // Specific month: get first and last day of the month
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0); // Last day of the month
 
-    if (!session?.token) {
-        throw new Error('Unauthorized: No session token available');
+        const start_date = startDate.toISOString().split('T')[0];
+        const end_date = endDate.toISOString().split('T')[0];
+
+        return { start_date, end_date };
+    } else {
+        // Entire year: January 1 to December 31
+        const start_date = `${year}-01-01`;
+        const end_date = `${year}-12-31`;
+
+        return { start_date, end_date };
     }
-
-    // Build query string with params
-    const queryParams = new URLSearchParams();
-    queryParams.set('year', params.year.toString());
-
-    if (params.month !== undefined) {
-        queryParams.set('month', params.month.toString());
-    }
-    if (params.merchant_id) {
-        queryParams.set('merchant_id', params.merchant_id);
-    }
-    if (params.pgo_id) {
-        queryParams.set('pgo_id', params.pgo_id);
-    }
-
-    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.reports.transactionsMonthly}?${queryParams.toString()}`;
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.token}`,
-        },
-        cache: 'no-store',
-    });
-
-    if (!response.ok) {
-        let errorMessage = 'Failed to fetch monthly transaction summary';
-
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-            errorMessage = response.statusText || errorMessage;
-        }
-
-        if (response.status === 401) {
-            throw new Error(`Unauthorized: ${errorMessage}`);
-        } else if (response.status === 403) {
-            throw new Error(`Forbidden: ${errorMessage}`);
-        } else if (response.status === 404) {
-            throw new Error(`Not Found: ${errorMessage}`);
-        }
-
-        throw new Error(`${errorMessage} (Status: ${response.status})`);
-    }
-
-    const responseData = await response.json();
-
-    // Parse and validate response data
-    // Handle if data is wrapped in a data property
-    const summaryData = responseData.data || responseData;
-    return MonthlyTransactionSummarySchema.parse(summaryData);
 }
 
 /**
- * Prefetch monthly transaction summary for current period
- * This will populate the TanStack Query cache with the current month's data
+ * Prefetch monthly transaction volume statistics for current period
+ * This will populate the TanStack Query cache with the current month's volume stats
+ * Uses the volume stats API endpoint with date range converted from year/month params
  */
-export async function prefetchMonthlyTransactionSummary(
+export async function prefetchMonthlyTransactionStats(
     params?: MonthlyTransactionSummaryParams
 ) {
     const queryClient = getQueryClient();
@@ -296,9 +97,20 @@ export async function prefetchMonthlyTransactionSummary(
     const reportParams = params || getCurrentPeriod();
     const normalizedParams = normalizeReportParams(reportParams);
 
+    // Convert year/month to start_date/end_date for volume stats API
+    const { start_date, end_date } = convertYearMonthToDateRange(
+        normalizedParams.year,
+        normalizedParams.month
+    );
+
+    // Map merchant_id to merchantId and pgo_id to gatewayId
+    // Note: pgo_id maps to gatewayId in the volume stats API
+    const merchantId = normalizedParams.merchant_id;
+    const gatewayId = normalizedParams.pgo_id;
+
     const queryOptions = {
         queryKey: reportsKeys.transactionsMonthlyWithParams(normalizedParams),
-        queryFn: () => fetchMonthlyTransactionSummaryServer(normalizedParams),
+        queryFn: () => getTransactionStats(start_date, end_date, merchantId, gatewayId),
         staleTime: QUERY_CACHE.STALE_TIME_DETAIL,
     };
 
@@ -306,10 +118,10 @@ export async function prefetchMonthlyTransactionSummary(
     await queryClient.prefetchQuery(queryOptions);
 
     // Verify the data is in the cache
-    const cachedData = queryClient.getQueryData<MonthlyTransactionSummary>(
+    const cachedData = queryClient.getQueryData(
         reportsKeys.transactionsMonthlyWithParams(normalizedParams)
     );
     if (!cachedData) {
-        console.warn('Warning: Prefetched monthly transaction summary not found in cache');
+        console.warn('Warning: Prefetched monthly transaction volume stats not found in cache');
     }
 }
