@@ -1,6 +1,6 @@
 'use client';
 
-import { useDisbursementDetail } from '@/features/disbursements/queries/disbursements';
+// import { useDisbursementDetail } from '@/features/disbursements/queries/disbursements';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { IconArrowLeft, IconLoader } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import DisbursementOverviewTab from './disbursement-overview-tab';
 import DisbursementProcessingHistoryTab from './disbursement-processing-history-tab';
 import DisbursementAuditTrailTab from './disbursement-audit-trail-tab';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface DisbursementDetailsProps {
     disbursementId: string;
@@ -15,7 +17,10 @@ interface DisbursementDetailsProps {
 
 export default function DisbursementDetails({ disbursementId }: DisbursementDetailsProps) {
     const router = useRouter();
-    const { data: disbursement, isLoading, error } = useDisbursementDetail(disbursementId);
+    const trpc = useTRPC();
+    const { data: disbursement, isLoading, error } = useSuspenseQuery(trpc.disbursements.getById.queryOptions({
+        id: disbursementId,
+    }));
 
     if (isLoading) {
         return (

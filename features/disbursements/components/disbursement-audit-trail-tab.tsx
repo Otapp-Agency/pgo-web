@@ -1,9 +1,8 @@
 'use client';
 
-import { useAuditTrail } from '@/features/disbursements/queries/disbursements';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { IconLoader, IconHistory } from '@tabler/icons-react';
+import { IconLoader } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import {
     Table,
@@ -13,6 +12,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery } from '@tanstack/react-query';
+import type { AuditTrailEntry } from '@/lib/definitions';
 
 interface DisbursementAuditTrailTabProps {
     disbursementId: string;
@@ -27,7 +29,8 @@ function formatDate(dateString: string): string {
 }
 
 export default function DisbursementAuditTrailTab({ disbursementId }: DisbursementAuditTrailTabProps) {
-    const { data: auditTrail, isLoading, error } = useAuditTrail(disbursementId);
+    const trpc = useTRPC();
+    const { data: auditTrail, isLoading, error } = useQuery(trpc.disbursements.auditTrail.queryOptions({ id: disbursementId }));
 
     if (isLoading) {
         return (
@@ -54,7 +57,8 @@ export default function DisbursementAuditTrailTab({ disbursementId }: Disburseme
         );
     }
 
-    if (!auditTrail || auditTrail.length === 0) {
+    // Type guard: ensure auditTrail is an array
+    if (!auditTrail || !Array.isArray(auditTrail) || auditTrail.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -70,8 +74,9 @@ export default function DisbursementAuditTrailTab({ disbursementId }: Disburseme
         );
     }
 
-    // Sort by timestamp descending (most recent first)
-    const sortedAuditTrail = [...auditTrail].sort((a, b) => {
+    // Type assert and sort by timestamp descending (most recent first)
+    const auditTrailArray = auditTrail as AuditTrailEntry[];
+    const sortedAuditTrail = [...auditTrailArray].sort((a, b) => {
         const dateA = new Date(a.timestamp).getTime();
         const dateB = new Date(b.timestamp).getTime();
         return dateB - dateA;

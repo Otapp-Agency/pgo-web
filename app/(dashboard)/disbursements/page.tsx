@@ -1,4 +1,5 @@
-import { HydrateClient, prefetchDisbursementsList, prefetchMonthlyDisbursementSummary } from '@/features/disbursements/queries/server';
+import { HydrateClient, getQueryClient } from '@/lib/server-query-client';
+import { trpc } from '@/lib/trpc/server';
 import { Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import DisbursementsList from '@/features/disbursements/components/disbursements-list';
@@ -13,10 +14,13 @@ import { SummaryCardsSkeleton } from '@/components/ui/page-skeleton';
 export default async function Page() {
   await requirePermission(PERMISSIONS.DISBURSEMENTS.VIEW);
 
-  await Promise.all([
-    prefetchDisbursementsList(),
-    prefetchMonthlyDisbursementSummary(),
-  ]);
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.disbursements.list.queryOptions({
+      page: 1,
+      per_page: 10,
+    }),
+  );
 
   return (
     <HydrateClient>

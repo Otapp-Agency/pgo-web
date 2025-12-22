@@ -17,12 +17,9 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { MonthlySummaryCards } from './monthly-summary-cards';
-import {
-    monthlyDisbursementSummaryQueryOptions,
-    getCurrentPeriod,
-} from '@/features/disbursements/queries/reports';
 import { merchantsListQueryOptions } from '@/features/merchants/queries/merchants';
 import type { MonthlyDisbursementSummaryParams } from '@/lib/definitions';
+import { useTRPC } from '@/lib/trpc/client';
 
 const MONTHS = [
     { value: '1', label: 'January' },
@@ -54,7 +51,7 @@ function getYearOptions(): { value: string; label: string }[] {
 
 export function MonthlySummarySection() {
     const [isOpen, setIsOpen] = useState(true);
-    const currentPeriod = getCurrentPeriod();
+    const currentPeriod = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 
     // Filter state
     const [selectedYear, setSelectedYear] = useState(currentPeriod.year.toString());
@@ -62,6 +59,8 @@ export function MonthlySummarySection() {
     const [selectedMerchant, setSelectedMerchant] = useState<string>('all');
 
     const yearOptions = useMemo(() => getYearOptions(), []);
+
+    const trpc = useTRPC();
 
     // Build query params
     const queryParams: MonthlyDisbursementSummaryParams = useMemo(() => {
@@ -75,12 +74,17 @@ export function MonthlySummarySection() {
         return params;
     }, [selectedYear, selectedMonth, selectedMerchant]);
 
-    // Fetch monthly summary
+    // Fetch monthly summary using tRPC
     const {
         data: summaryData,
         isLoading: isSummaryLoading,
         isFetching: isSummaryFetching,
-    } = useQuery(monthlyDisbursementSummaryQueryOptions(queryParams));
+    } = useQuery(trpc.disbursements.monthlySummary.queryOptions({
+        year: queryParams.year,
+        month: queryParams.month,
+        merchant_id: queryParams.merchant_id,
+        pgo_id: queryParams.pgo_id,
+    }));
 
     // Fetch merchants for filter dropdown
     const { data: merchantsData, isLoading: isMerchantsLoading } = useQuery(

@@ -1,6 +1,5 @@
 'use client';
 
-import { useProcessingHistory } from '@/features/disbursements/queries/disbursements';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconLoader } from '@tabler/icons-react';
 import { format } from 'date-fns';
@@ -12,6 +11,9 @@ import {
     TimelineTitle,
     TimelineDescription,
 } from '@/components/timeline';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/lib/trpc/client';
+import type { ProcessingHistoryEntry } from '@/lib/definitions';
 
 interface DisbursementProcessingHistoryTabProps {
     disbursementId: string;
@@ -40,34 +42,13 @@ function getStatusBadgeVariant(status: string): "default" | "destructive" | "sec
 }
 
 export default function DisbursementProcessingHistoryTab({ disbursementId }: DisbursementProcessingHistoryTabProps) {
-    const { data: history, isLoading, error } = useProcessingHistory(disbursementId);
+    const trpc = useTRPC();
+    const { data: history } = useSuspenseQuery(trpc.disbursements.processingHistory.queryOptions({
+        id: disbursementId,
+    }));
 
-    if (isLoading) {
-        return (
-            <Card>
-                <CardContent className="flex items-center justify-center py-8">
-                    <div className="flex items-center gap-2">
-                        <IconLoader className="size-4 animate-spin" />
-                        <span className="text-muted-foreground">Loading processing history...</span>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card>
-                <CardContent className="py-8">
-                    <div className="text-destructive">
-                        {error instanceof Error ? error.message : 'Failed to load processing history'}
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (!history || history.length === 0) {
+    // Type guard: ensure history is an array
+    if (!history || !Array.isArray(history) || history.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -83,8 +64,9 @@ export default function DisbursementProcessingHistoryTab({ disbursementId }: Dis
         );
     }
 
-    // Sort by timestamp descending (most recent first)
-    const sortedHistory = [...history].sort((a, b) => {
+    // Type assert and sort by timestamp descending (most recent first)
+    const historyArray = history as ProcessingHistoryEntry[];
+    const sortedHistory = [...historyArray].sort((a, b) => {
         const dateA = new Date(a.timestamp).getTime();
         const dateB = new Date(b.timestamp).getTime();
         return dateB - dateA;

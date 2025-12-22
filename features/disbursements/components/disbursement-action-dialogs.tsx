@@ -17,12 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-
-import {
-    disbursementsKeys,
-    completeDisbursement,
-    cancelDisbursement,
-} from '@/features/disbursements/queries/disbursements';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface DisbursementDialogProps {
     disbursementId: string;
@@ -45,20 +40,28 @@ export function CompleteDisbursementDialog({
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
+    const completeMutationHook = useMutation(trpc.disbursements.complete.mutationOptions());
 
-    const completeMutation = useMutation({
-        mutationFn: () => completeDisbursement(disbursementId, { reason: reason || undefined }),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() });
-            // Invalidate all detail queries to handle both UID and numeric ID keys
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.details() });
-            toast.success(data.message || 'Disbursement completed successfully');
-            handleClose();
+    const completeMutation = {
+        mutate: () => {
+            completeMutationHook.mutate(
+                { id: disbursementId, reason: reason || undefined },
+                {
+                    onSuccess: () => {
+                        toast.success('Disbursement completed successfully')
+                        queryClient.invalidateQueries({ queryKey: trpc.disbursements.list.queryKey() });
+                        queryClient.invalidateQueries({ queryKey: trpc.disbursements.getById.queryKey({ id: disbursementId }) });
+                    },
+                    onError: (error) => {
+                        toast.error(error.message || 'Failed to complete disbursement')
+                    },
+                }
+            );
         },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to complete disbursement');
-        },
-    });
+        isPending: completeMutationHook.isPending,
+        reset: () => completeMutationHook.reset(),
+    };
 
     const handleComplete = () => {
         completeMutation.mutate();
@@ -153,20 +156,28 @@ export function CancelDisbursementDialog({
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
+    const cancelMutationHook = useMutation(trpc.disbursements.cancel.mutationOptions());
 
-    const cancelMutation = useMutation({
-        mutationFn: () => cancelDisbursement(disbursementId, { reason: reason || undefined }),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() });
-            // Invalidate all detail queries to handle both UID and numeric ID keys
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.details() });
-            toast.success(data.message || 'Disbursement cancelled successfully');
-            handleClose();
+    const cancelMutation = {
+        mutate: () => {
+            cancelMutationHook.mutate(
+                { id: disbursementId, reason: reason || undefined },
+                {
+                    onSuccess: () => {
+                        toast.success('Disbursement cancelled successfully')
+                        queryClient.invalidateQueries({ queryKey: trpc.disbursements.list.queryKey() });
+                        queryClient.invalidateQueries({ queryKey: trpc.disbursements.getById.queryKey({ id: disbursementId }) });
+                    },
+                    onError: (error) => {
+                        toast.error(error.message || 'Failed to cancel disbursement')
+                    },
+                }
+            );
         },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to cancel disbursement');
-        },
-    });
+        isPending: cancelMutationHook.isPending,
+        reset: () => cancelMutationHook.reset(),
+    };
 
     const handleCancel = () => {
         cancelMutation.mutate();

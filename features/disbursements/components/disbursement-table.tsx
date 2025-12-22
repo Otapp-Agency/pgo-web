@@ -32,11 +32,6 @@ import { Disbursement, DisbursementSchema } from "@/lib/definitions"
 import { useDisbursementsTableStore } from "@/lib/stores/disbursements-table-store"
 import { useRouter } from "next/navigation"
 import { DisbursementFilters } from "@/features/disbursements/components/disbursement-filters"
-import { exportDisbursements, ExportFormat } from "@/features/disbursements/queries/export"
-import {
-    disbursementsKeys,
-    retryDisbursement,
-} from "@/features/disbursements/queries/disbursements"
 import {
     CompleteDisbursementDialog,
     CancelDisbursementDialog,
@@ -90,6 +85,8 @@ import {
 } from "@/components/ui/tooltip"
 import { TableSkeletonRows } from "@/components/ui/table-skeleton"
 import { DISBURSEMENTS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
+import { ExportFormat } from "@/features/transactions/queries/export"
+import { useTRPC } from "@/lib/trpc/client"
 
 // Helper function to format amount with currency
 function formatAmount(amount: string, currency: string): string {
@@ -375,21 +372,22 @@ function ActionsCell({ disbursement }: { disbursement: Disbursement }) {
         router.push(`/disbursements/${idToUse}`)
     }
 
+    const trpc = useTRPC();
+
     // Retry mutation
-    const retryMutation = useMutation({
-        mutationFn: () => retryDisbursement(disbursementId),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() })
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.detail(disbursementId) })
-            toast.success(data.message || 'Disbursement retry initiated successfully')
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to retry disbursement')
-        },
-    })
+    const retryMutation = useMutation(trpc.disbursements.retry.mutationOptions())
 
     const handleRetry = () => {
-        retryMutation.mutate()
+        retryMutation.mutate({ id: disbursementId }, {
+            onSuccess: () => {
+                toast.success('Disbursement retry initiated successfully')
+                queryClient.invalidateQueries({ queryKey: trpc.disbursements.list.queryKey() });
+                queryClient.invalidateQueries({ queryKey: trpc.disbursements.getById.queryKey({ id: disbursementId }) });
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to retry disbursement')
+            },
+        })
     }
 
     // Determine which actions are available based on status
@@ -867,41 +865,21 @@ export function DisbursementTable({
         pageCount: paginationMeta.totalPages,
     })
 
-    // Export handler using store filters
-    const handleExport = React.useCallback(async (format: ExportFormat) => {
-        try {
-            // Build export params from store filters
-            const exportParams: Parameters<typeof exportDisbursements>[0] = {
-                format,
-            }
+    const trpc = useTRPC();
 
-            // Add filters from store
-            if (filters.status) {
-                exportParams.status = filters.status
-            }
-            if (filters.startDate) {
-                exportParams.start_date = filters.startDate
-            }
-            if (filters.endDate) {
-                exportParams.end_date = filters.endDate
-            }
-            if (filters.amountMin) {
-                exportParams.amount_min = filters.amountMin
-            }
-            if (filters.amountMax) {
-                exportParams.amount_max = filters.amountMax
-            }
-            if (filters.search) {
-                exportParams.search = filters.search
-            }
+    // Export mutation
+    const exportMutation = useMutation(trpc.disbursements.export.mutationOptions())
 
-            await exportDisbursements(exportParams)
-            toast.success(`Exporting disbursements as ${format.toUpperCase()}...`)
-        } catch (error) {
-            console.error('Export error:', error)
-            toast.error(error instanceof Error ? error.message : 'Failed to export disbursements')
-        }
-    }, [filters])
+    const handleExport = async (format: ExportFormat) => {
+        exportMutation.mutate({ format }, {
+            onSuccess: () => {
+                toast.success(`Exporting disbursements as ${format.toUpperCase()}...`)
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to export disbursements')
+            },
+        })
+    }
 
     return (
         <div className="w-full flex flex-col gap-6">

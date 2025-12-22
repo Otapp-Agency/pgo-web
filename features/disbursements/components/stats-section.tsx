@@ -25,11 +25,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { StatsCards } from './stats-cards';
-import {
-    disbursementVolumeStatsQueryOptions,
-    disbursementStatusStatsQueryOptions,
-    disbursementGatewayStatsQueryOptions,
-} from '@/features/disbursements/queries/stats';
+import { useTRPC } from '@/lib/trpc/client';
 import type { DisbursementStatsParams } from '@/lib/definitions';
 import { cn } from '@/lib/utils';
 
@@ -111,26 +107,30 @@ export function StatsSection() {
         };
     }, [dateRange]);
 
+    const trpc = useTRPC();
+
     // Default params for disabled queries (won't be used since enabled is false)
     const defaultParams: DisbursementStatsParams = {
         startDate: new Date().toISOString(),
         endDate: new Date().toISOString(),
     };
 
+    const params = queryParams || defaultParams;
+
     // Fetch all three endpoints in parallel
     // Always provide 3 queries to satisfy TypeScript tuple type requirement
     const queries = useQueries({
         queries: [
             {
-                ...disbursementVolumeStatsQueryOptions(queryParams || defaultParams),
+                ...trpc.disbursements.volumeStats.queryOptions(params),
                 enabled: !!queryParams,
             },
             {
-                ...disbursementStatusStatsQueryOptions(queryParams || defaultParams),
+                ...trpc.disbursements.statusStats.queryOptions(params),
                 enabled: !!queryParams,
             },
             {
-                ...disbursementGatewayStatsQueryOptions(queryParams || defaultParams),
+                ...trpc.disbursements.gatewayStats.queryOptions(params),
                 enabled: !!queryParams,
             },
         ],

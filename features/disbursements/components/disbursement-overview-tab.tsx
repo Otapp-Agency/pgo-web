@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { IconCircleCheckFilled, IconCircleX, IconLoader, IconRefresh, IconCheck, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { CompleteDisbursementDialog, CancelDisbursementDialog } from './disbursement-action-dialogs';
-import { useCanUpdate, retryDisbursement } from '@/features/disbursements/queries/disbursements';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { disbursementsKeys } from '@/features/disbursements/queries/disbursements';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface DisbursementOverviewTabProps {
     disbursement: Disbursement;
@@ -37,7 +36,8 @@ function formatAmount(amount: string): string {
 export default function DisbursementOverviewTab({ disbursement, numericId }: DisbursementOverviewTabProps) {
     const queryClient = useQueryClient();
     // Use numeric ID for backend API calls that expect Long type
-    const { data: canUpdate } = useCanUpdate(numericId);
+    const trpc = useTRPC();
+    const { data: canUpdate } = useQuery(trpc.disbursements.canUpdate.queryOptions({ id: numericId }));
 
     const status = (disbursement.status || '').toUpperCase();
     const getStatusConfig = () => {
@@ -92,18 +92,22 @@ export default function DisbursementOverviewTab({ disbursement, numericId }: Dis
 
     const statusConfig = getStatusConfig();
 
-    const retryMutation = useMutation({
-        mutationFn: () => retryDisbursement(numericId),
-        onSuccess: (data) => {
-            // Invalidate all detail queries to handle both UID and numeric ID keys
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.details() });
-            queryClient.invalidateQueries({ queryKey: disbursementsKeys.lists() });
-            toast.success(data.message || 'Disbursement retry initiated successfully');
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to retry disbursement');
-        },
-    });
+    // Retry mutation
+    const retryMutation = useMutation(trpc.disbursements.retry.mutationOptions())
+
+    const handleRetry = () => {
+        retryMutation.mutate({ id: numericId }, {
+            onSuccess: () => {
+                toast.success('Disbursement retry initiated successfully')
+                queryClient.invalidateQueries({ queryKey: trpc.disbursements.list.queryKey() });
+                queryClient.invalidateQueries({ queryKey: trpc.disbursements.getById.queryKey({ id: numericId }) });
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to retry disbursement')
+            },
+        })
+    }
+
 
     const formattedAmount = disbursement.amount && disbursement.currency
         ? `${disbursement.currency} ${formatAmount(disbursement.amount)}`
@@ -290,7 +294,7 @@ export default function DisbursementOverviewTab({ disbursement, numericId }: Dis
                             {canRetry && (
                                 <Button
                                     variant="outline"
-                                    onClick={() => retryMutation.mutate()}
+                                    onClick={() => retryMutation.mutate({ id: numericId })}
                                     disabled={retryMutation.isPending}
                                 >
                                     {retryMutation.isPending ? (
