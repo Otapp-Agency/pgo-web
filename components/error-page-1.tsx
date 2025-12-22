@@ -35,3 +35,4 @@ export function ErrorPage1({ error, reset }: ErrorPage1Props) {
     </div>
   );
 }
+

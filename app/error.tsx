@@ -17,3 +17,4 @@ export default function Error({
 
     return <ErrorPage1 error={error} reset={reset} />;
 }
+
