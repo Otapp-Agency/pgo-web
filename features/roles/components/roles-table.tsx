@@ -16,13 +16,10 @@ import {
 } from "@tabler/icons-react"
 import {
     ColumnDef,
-    ColumnFiltersState,
     flexRender,
     getCoreRowModel,
     Header,
-    SortingState,
     useReactTable,
-    VisibilityState,
 } from "@tanstack/react-table"
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -32,15 +29,6 @@ import { useRolesTableStore } from "@/lib/stores/roles-table-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerTrigger,
-} from "@/components/ui/drawer"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,

@@ -24,6 +24,7 @@ import {
 } from "@tanstack/react-table"
 import { format } from "date-fns"
 
+import { useIsMobile } from "@/hooks/use-mobile"
 import { PaymentGateway, PaymentGatewaySchema } from "@/lib/definitions"
 import { usePaymentGatewaysTableStore } from "@/lib/stores/payment-gateways-table-store"
 import { useTRPC } from "@/lib/trpc/client"
@@ -34,6 +35,16 @@ export const schema = PaymentGatewaySchema
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+} from "@/components/ui/drawer"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -50,6 +61,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import {
     Table,
     TableBody,
@@ -69,12 +81,6 @@ function formatDate(dateString: string | null | undefined): string {
     } catch {
         return dateString
     }
-}
-
-// Helper function to truncate ID
-function truncateId(id: string, maxLength: number = 20): string {
-    if (!id || id.length <= maxLength) return id
-    return `${id.substring(0, maxLength)}...`
 }
 
 // Sortable header component
@@ -116,14 +122,14 @@ function SortableHeader({
 function ActionCell({ gateway }: { gateway: PaymentGateway }) {
     const trpc = useTRPC()
     const queryClient = useQueryClient()
-    
+
     const activateMutation = useMutation(trpc.gateways.activate.mutationOptions({
         onSuccess: () => {
             // Invalidate list query to refetch
             queryClient.invalidateQueries({ queryKey: trpc.gateways.list.queryKey() })
         },
     }))
-    
+
     const deactivateMutation = useMutation(trpc.gateways.deactivate.mutationOptions({
         onSuccess: () => {
             // Invalidate list query to refetch
@@ -159,7 +165,14 @@ function ActionCell({ gateway }: { gateway: PaymentGateway }) {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <PaymentGatewayDrawer
+                    gateway={gateway}
+                    trigger={
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            View Details
+                        </DropdownMenuItem>
+                    }
+                />
                 <DropdownMenuItem>Edit</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {gateway.is_active ? (
@@ -239,7 +252,7 @@ const columns: ColumnDef<PaymentGateway>[] = [
         accessorKey: "supported_methods",
         header: "Supported Methods",
         cell: ({ row }) => {
-            const methods = row.original.supported_methods || []
+            const methods = row.original.supported_methods as string[]
             return (
                 <div className="flex flex-wrap gap-1">
                     {methods.length > 0 ? (
@@ -616,6 +629,152 @@ export function PaymentGatewaysTable({
                 </div>
             </div>
         </div>
+    )
+}
+
+function PaymentGatewayDrawer({
+    gateway,
+    trigger
+}: {
+    gateway: PaymentGateway
+    trigger: React.ReactNode
+}) {
+    const isMobile = useIsMobile()
+
+    return (
+        <Drawer direction={isMobile ? "bottom" : "right"}>
+            <DrawerTrigger asChild>
+                {trigger}
+            </DrawerTrigger>
+            <DrawerContent>
+                <DrawerHeader className="gap-1">
+                    <DrawerTitle>Payment Gateway Details</DrawerTitle>
+                    <DrawerDescription>
+                        Gateway Code: {gateway.code}
+                    </DrawerDescription>
+                </DrawerHeader>
+                <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+                    {/* Gateway Information Section */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Gateway Information</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">ID:</span>
+                                <span className="font-mono text-xs">{gateway.id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">UID:</span>
+                                <span className="font-mono text-xs">{gateway.uid}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Code:</span>
+                                <span className="font-mono">{gateway.code}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Name:</span>
+                                <span>{gateway.name}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* API URLs */}
+                    {(gateway.api_base_url_production || gateway.api_base_url_sandbox) && (
+                        <>
+                            <div className="flex flex-col gap-3">
+                                <Label className="text-base font-semibold">API URLs</Label>
+                                <div className="grid gap-2 rounded-lg border p-3">
+                                    {gateway.api_base_url_production && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Production:</span>
+                                            <span className="font-mono text-xs break-all text-right max-w-[60%]">
+                                                {gateway.api_base_url_production}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {gateway.api_base_url_sandbox && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Sandbox:</span>
+                                            <span className="font-mono text-xs break-all text-right max-w-[60%]">
+                                                {gateway.api_base_url_sandbox}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <Separator />
+                        </>
+                    )}
+
+                    {/* Supported Methods */}
+                    {gateway.supported_methods && gateway.supported_methods.length > 0 && (
+                        <>
+                            <div className="flex flex-col gap-3">
+                                <Label className="text-base font-semibold">Supported Methods</Label>
+                                <div className="flex flex-wrap gap-2 rounded-lg border p-3">
+                                    {gateway.supported_methods.map((method) => (
+                                        <Badge key={method} variant="outline" className="px-2 py-0.5">
+                                            {method}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                            <Separator />
+                        </>
+                    )}
+
+                    {/* Status Information */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Status</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Active:</span>
+                                <Badge variant={gateway.is_active ? "default" : "secondary"}>
+                                    {gateway.is_active ? (
+                                        <>
+                                            <IconCircleCheckFilled className="mr-1 size-3" />
+                                            Active
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="mr-1">✕</span>
+                                            Inactive
+                                        </>
+                                    )}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Timestamps */}
+                    <div className="flex flex-col gap-3">
+                        <Label className="text-base font-semibold">Timestamps</Label>
+                        <div className="grid gap-2 rounded-lg border p-3">
+                            {gateway.created_at && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Created:</span>
+                                    <span>{formatDate(gateway.created_at)}</span>
+                                </div>
+                            )}
+                            {gateway.updated_at && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Updated:</span>
+                                    <span>{formatDate(gateway.updated_at)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <DrawerFooter>
+                    <DrawerClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DrawerClose>
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
     )
 }
 

@@ -489,7 +489,7 @@ export const merchantsRouter = createTRPCRouter({
         .input(
             z.object({
                 uid: z.string(),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 
                 body: z.record(z.string(), z.any()).optional(),
             })
         )
