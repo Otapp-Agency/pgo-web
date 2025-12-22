@@ -26,7 +26,8 @@ import { format } from "date-fns"
 
 import { PaymentGateway, PaymentGatewaySchema } from "@/lib/definitions"
 import { usePaymentGatewaysTableStore } from "@/lib/stores/payment-gateways-table-store"
-import { useActivatePaymentGateway, useDeactivatePaymentGateway } from "../queries/payment-gateways"
+import { useTRPC } from "@/lib/trpc/client"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 // Re-export schema for build compatibility
 export const schema = PaymentGatewaySchema
@@ -113,17 +114,31 @@ function SortableHeader({
 
 // Action cell component with hooks
 function ActionCell({ gateway }: { gateway: PaymentGateway }) {
-    const activateMutation = useActivatePaymentGateway()
-    const deactivateMutation = useDeactivatePaymentGateway()
+    const trpc = useTRPC()
+    const queryClient = useQueryClient()
+    
+    const activateMutation = useMutation(trpc.gateways.activate.mutationOptions({
+        onSuccess: () => {
+            // Invalidate list query to refetch
+            queryClient.invalidateQueries({ queryKey: trpc.gateways.list.queryKey() })
+        },
+    }))
+    
+    const deactivateMutation = useMutation(trpc.gateways.deactivate.mutationOptions({
+        onSuccess: () => {
+            // Invalidate list query to refetch
+            queryClient.invalidateQueries({ queryKey: trpc.gateways.list.queryKey() })
+        },
+    }))
 
     const isLoading = activateMutation.isPending || deactivateMutation.isPending
 
     const handleActivate = () => {
-        activateMutation.mutate(gateway.uid)
+        activateMutation.mutate({ id: gateway.uid ?? gateway.id })
     }
 
     const handleDeactivate = () => {
-        deactivateMutation.mutate(gateway.uid)
+        deactivateMutation.mutate({ id: gateway.uid ?? gateway.id })
     }
 
     return (

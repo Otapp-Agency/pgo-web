@@ -3,6 +3,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { z } from 'zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,11 +19,24 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    CreatePaymentGatewaySchema,
-    type CreatePaymentGatewayInput,
-    useCreatePaymentGateway,
-} from '@/features/payment-gateways/queries/payment-gateways';
+import { useTRPC } from '@/lib/trpc/client';
+
+// Schema matching tRPC router input
+const CreatePaymentGatewaySchema = z.object({
+    name: z.string().min(1, 'name is required'),
+    code: z.string().min(1, 'code is required'),
+    api_base_url_production: z.string().optional(),
+    api_base_url_sandbox: z.string().optional(),
+    credentials: z
+        .record(z.string(), z.string().optional())
+        .refine((val) => Object.keys(val).length > 0, {
+            message: 'credentials is required and must be an object',
+        }),
+    supported_methods: z.array(z.string()).min(1, 'supported_methods is required and must be a non-empty array'),
+    is_active: z.boolean().optional().default(true),
+});
+
+type CreatePaymentGatewayInput = z.infer<typeof CreatePaymentGatewaySchema>;
 
 // Payment method options
 const PAYMENT_METHODS = [
@@ -35,7 +50,17 @@ interface NewPaymentGatewayFormProps {
 }
 
 export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps) {
-    const createPaymentGatewayMutation = useCreatePaymentGateway();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const createPaymentGatewayMutation = useMutation(
+        trpc.gateways.create.mutationOptions({
+            onSuccess: () => {
+                // Invalidate list query to refetch
+                queryClient.invalidateQueries({ queryKey: trpc.gateways.list.queryKey() });
+            },
+        })
+    );
 
     const form = useForm<CreatePaymentGatewayInput>({
         resolver: zodResolver(CreatePaymentGatewaySchema),
