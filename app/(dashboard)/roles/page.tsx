@@ -1,4 +1,3 @@
-import { HydrateClient, prefetchRolesList } from '@/features/roles/queries/server';
 import { requirePermission } from '@/lib/auth/auth';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { Suspense } from 'react';
@@ -6,10 +5,19 @@ import { ErrorBoundary } from 'react-error-boundary';
 import RolesList from '@/features/roles/components/roles-list';
 import { TablePageSkeleton } from '@/components/ui/table-skeleton';
 import { ROLES_TABLE_COLUMNS } from '@/components/ui/table-skeleton-presets';
+import { getQueryClient } from '@/lib/trpc/server';
+import { trpc } from '@/lib/trpc/server';
+import { HydrateClient } from '@/lib/server-query-client';
 
 export default async function Page() {
     await requirePermission(PERMISSIONS.ROLES.VIEW);
-    await prefetchRolesList();
+    const queryClient = getQueryClient();
+    void queryClient.prefetchQuery(
+        trpc.users.roles.list.queryOptions({
+            page: '1',
+            per_page: '10',
+        }),
+    );
 
     return (
         <HydrateClient>

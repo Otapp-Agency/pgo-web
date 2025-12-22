@@ -149,9 +149,9 @@ export const API_ENDPOINTS = {
     byExternalId: "/admin/v1/disbursements/external/{externalId}",
 
     // Additional features
-    processingHistory: "/admin/v1/disbursements/{id}/processing-history",
-    auditTrail: "/admin/v1/disbursements/{id}/audit-trail",
-    canUpdate: "/admin/v1/disbursements/{id}/can-update",
+    processingHistory: "/admin/v1/disbursements/uid/{uid}/processing-history",
+    auditTrail: "/admin/v1/disbursements/uid/{uid}/audit-trail",
+    canUpdate: "/admin/v1/disbursements/uid/{uid}/can-update",
     stale: "/admin/v1/disbursements/stale",
     pending: "/admin/v1/disbursements/pending",
     failed: "/admin/v1/disbursements/failed",

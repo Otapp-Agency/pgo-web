@@ -1,8 +1,3 @@
-import {
-    HydrateClient,
-    prefetchMonthlyTransactionStats,
-    prefetchTransactionsListServer,
-} from '@/features/transactions/queries/server';
 import { Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import TransactionsList from '@/features/transactions/components/transactions-list';
@@ -10,13 +5,21 @@ import { MonthlySummarySection } from '@/features/transactions/components/monthl
 import { TablePageSkeleton } from '@/components/ui/table-skeleton';
 import { TRANSACTIONS_TABLE_COLUMNS } from '@/components/ui/table-skeleton-presets';
 import { SummaryCardsSkeleton } from '@/components/ui/page-skeleton';
+import { getQueryClient, trpc } from '@/lib/trpc/server';
+import { requirePermission } from '@/lib/auth/auth';
+import { PERMISSIONS } from '@/lib/auth/permissions';
+import { HydrateClient } from '@/lib/server-query-client';
 
 export default async function Page() {
-    // Prefetch both transactions list and monthly summary in parallel
-    await Promise.all([
-        prefetchTransactionsListServer(),
-        prefetchMonthlyTransactionStats(),
-    ]);
+    await requirePermission(PERMISSIONS.DISBURSEMENTS.VIEW);
+
+    const queryClient = getQueryClient();
+    void queryClient.prefetchQuery(
+        trpc.transactions.list.queryOptions({
+            page: "1",
+            per_page: "10",
+        }),
+    );
 
     return (
         <HydrateClient>

@@ -3,7 +3,7 @@
  * External API calls for authentication and user data
  */
 
-import 'server-only'
+// import 'server-only'
 import { API_CONFIG } from '@/lib/config/api'
 import { API_ENDPOINTS } from '@/lib/config/api'
 import { buildEndpointUrl } from '@/lib/config/endpoints'

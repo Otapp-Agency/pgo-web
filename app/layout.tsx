@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { QueryProvider } from "@/lib/query-provider";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "@/components/ui/sonner";
+import { TRPCReactProvider } from "@/lib/trpc/client";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>
+        <TRPCReactProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -42,7 +42,7 @@ export default function RootLayout({
             <Toaster richColors position="top-right" />
             <ReactQueryDevtools initialIsOpen={false} />
           </ThemeProvider>
-        </QueryProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );

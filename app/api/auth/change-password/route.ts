@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        console.log('body', body);
+
         const { currentPassword, newPassword, confirmPassword } = body;
 
         // Validate required fields exist and are strings
@@ -78,7 +80,11 @@ export async function POST(request: NextRequest) {
             }),
         });
 
+        console.log('response', response);
+
         const data = await response.json().catch(() => ({}));
+
+        console.log('data', data);
 
         if (!response.ok) {
             console.error('Change password error:', {

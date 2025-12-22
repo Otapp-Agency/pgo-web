@@ -11,6 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
+      suppressHydrationWarning
     >
       <AppSidebar variant="sidebar" />
       <SidebarInset>

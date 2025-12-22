@@ -17,7 +17,6 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { MonthlySummaryCards } from './monthly-summary-cards';
-import { merchantsListQueryOptions } from '@/features/merchants/queries/merchants';
 import type { MonthlyDisbursementSummaryParams } from '@/lib/definitions';
 import { useTRPC } from '@/lib/trpc/client';
 
@@ -88,7 +87,7 @@ export function MonthlySummarySection() {
 
     // Fetch merchants for filter dropdown
     const { data: merchantsData, isLoading: isMerchantsLoading } = useQuery(
-        merchantsListQueryOptions({ page: 0, per_page: 100 })
+        trpc.merchants.list.queryOptions({ page: '0', per_page: '100' })
     );
 
     const merchants = merchantsData?.data ?? [];
