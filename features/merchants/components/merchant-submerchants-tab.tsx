@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useSubMerchants } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,14 @@ export default function MerchantSubmerchantsTab({ merchantUid }: MerchantSubmerc
     const router = useRouter();
     const [page, setPage] = useState(0);
     const perPage = 15;
-    const { data, isLoading, error } = useSubMerchants(merchantUid, page, perPage);
+    const trpc = useTRPC();
+    const { data, isLoading, error } = useQuery(
+        trpc.merchants.getSubMerchants.queryOptions({
+            uid: merchantUid,
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
+    );
 
     if (isLoading) {
         return (
@@ -132,8 +140,8 @@ export default function MerchantSubmerchantsTab({ merchantUid }: MerchantSubmerc
                                                         merchant.status?.toUpperCase() === 'ACTIVE'
                                                             ? 'default'
                                                             : merchant.status?.toUpperCase() === 'SUSPENDED'
-                                                            ? 'destructive'
-                                                            : 'secondary'
+                                                                ? 'destructive'
+                                                                : 'secondary'
                                                     }
                                                 >
                                                     {merchant.status}

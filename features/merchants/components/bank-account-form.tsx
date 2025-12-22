@@ -27,7 +27,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 
 import { CreateBankAccountRequestSchema, type CreateBankAccountRequest, type BankAccount } from '@/lib/definitions';
-import { useCreateUpdateBankAccount } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Account type options
 const ACCOUNT_TYPES = [
@@ -49,8 +51,21 @@ interface BankAccountFormProps {
 }
 
 export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel }: BankAccountFormProps) {
-    const createUpdateMutation = useCreateUpdateBankAccount();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const isEditMode = !!bankAccount;
+
+    const createUpdateMutation = useMutation(
+        trpc.merchants.createBankAccount.mutationOptions({
+            onSuccess: (data, variables) => {
+                queryClient.invalidateQueries({ queryKey: trpc.merchants.getBankAccounts.queryKey({ uid: variables.uid }) });
+                toast.success(data.message || 'Bank account saved successfully');
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to save bank account');
+            },
+        })
+    );
 
     const form = useForm<CreateBankAccountRequest>({
         resolver: zodResolver(CreateBankAccountRequestSchema),
@@ -87,8 +102,11 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
     const onSubmit = async (data: CreateBankAccountRequest) => {
         try {
             await createUpdateMutation.mutateAsync({
-                merchantUid,
-                bankAccount: data,
+                uid: merchantUid,
+                bankAccount: {
+                    ...data,
+                    bankAccountUid: bankAccount?.uid || '',
+                },
             });
             form.reset();
             onSuccess?.();
@@ -103,7 +121,7 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
                 {/* Basic Information */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Basic Information</h3>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2">
                         <FormField
                             control={form.control}
@@ -207,7 +225,7 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
                 {/* Additional Information */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Additional Information</h3>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2">
                         <FormField
                             control={form.control}
@@ -247,9 +265,9 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
                             <FormItem>
                                 <FormLabel>Bank Address</FormLabel>
                                 <FormControl>
-                                    <Textarea 
-                                        placeholder="e.g., Ohio Street, Dar es Salaam" 
-                                        {...field} 
+                                    <Textarea
+                                        placeholder="e.g., Ohio Street, Dar es Salaam"
+                                        {...field}
                                         value={field.value || ''}
                                         rows={2}
                                     />
@@ -266,7 +284,7 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
                 {/* Settings */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Settings</h3>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2">
                         <FormField
                             control={form.control}
@@ -322,9 +340,9 @@ export function BankAccountForm({ merchantUid, bankAccount, onSuccess, onCancel 
                             <FormItem>
                                 <FormLabel>Notes</FormLabel>
                                 <FormControl>
-                                    <Textarea 
-                                        placeholder="Additional notes about this bank account" 
-                                        {...field} 
+                                    <Textarea
+                                        placeholder="Additional notes about this bank account"
+                                        {...field}
                                         value={field.value || ''}
                                         rows={3}
                                     />

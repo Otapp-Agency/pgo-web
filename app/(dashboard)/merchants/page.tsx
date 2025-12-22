@@ -1,4 +1,3 @@
-import { HydrateClient, prefetchMerchantsList } from '@/features/merchants/queries/server';
 import { requirePermission } from '@/lib/auth/auth';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { Suspense } from 'react';
@@ -6,10 +5,13 @@ import { ErrorBoundary } from 'react-error-boundary';
 import MerchantsList from '@/features/merchants/components/merchants-list';
 import { TablePageSkeleton } from '@/components/ui/table-skeleton';
 import { MERCHANTS_TABLE_COLUMNS } from '@/components/ui/table-skeleton-presets';
+import { HydrateClient, getQueryClient } from '@/lib/server-query-client';
+import { trpc } from '@/lib/trpc/server';
 
 export default async function Page() {
   await requirePermission(PERMISSIONS.MERCHANTS.VIEW);
-  await prefetchMerchantsList();
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(trpc.merchants.list.queryOptions({}));
 
   return (
     <HydrateClient>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useMerchantActivity } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconLoader, IconTrendingUp, IconTrendingDown, IconClock, IconCheck, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
@@ -19,7 +20,10 @@ function formatDate(dateString: string | null | undefined): string {
 }
 
 export default function MerchantActivityTab({ merchantUid }: MerchantActivityTabProps) {
-    const { data: activity, isLoading, error } = useMerchantActivity(merchantUid);
+    const trpc = useTRPC();
+    const { data: activity, isLoading, error } = useQuery(
+        trpc.merchants.activity.queryOptions({ uid: merchantUid })
+    );
 
     if (isLoading) {
         return (

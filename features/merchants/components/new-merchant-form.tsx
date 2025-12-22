@@ -25,7 +25,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 
 import { CreateMerchantRequestSchema, type CreateMerchantRequest } from '@/lib/definitions';
-import { useCreateMerchant } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Merchant type options
 const MERCHANT_TYPES = [
@@ -51,7 +53,20 @@ interface NewMerchantFormProps {
 }
 
 export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
-    const createMerchantMutation = useCreateMerchant();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const createMerchantMutation = useMutation(
+        trpc.merchants.create.mutationOptions({
+            onSuccess: (data) => {
+                queryClient.invalidateQueries({ queryKey: ['merchants', 'list'] });
+                toast.success(data.message || 'Merchant created successfully');
+            },
+            onError: (error: Error) => {
+                toast.error(error.message || 'Failed to create merchant');
+            },
+        })
+    );
 
     const form = useForm<CreateMerchantRequest>({
         resolver: zodResolver(CreateMerchantRequestSchema),
@@ -101,7 +116,7 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                 {/* Basic Information */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
@@ -257,7 +272,7 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                 {/* Contact Information */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">Contact Information</h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
@@ -308,7 +323,7 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                 {/* Business Address */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">Business Address</h3>
-                    
+
                     <FormField
                         control={form.control}
                         name="businessAddress"
@@ -389,7 +404,7 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                 {/* Transaction Limits */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">Transaction Limits</h3>
-                    
+
                     <div className="grid grid-cols-3 gap-4">
                         <FormField
                             control={form.control}

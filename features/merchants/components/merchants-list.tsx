@@ -4,10 +4,13 @@ import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MerchantsTable } from './merchants-table';
 import { NewMerchantDrawer } from './new-merchant-drawer';
-import { merchantsListQueryOptions, type MerchantListParams } from '@/features/merchants/queries/merchants';
+import type { MerchantListParams } from '@/features/merchants/types';
 import { useMerchantsTableStore } from '@/lib/stores/merchants-table-store';
+import { useTRPC } from '@/lib/trpc/client';
+import type { PaginatedMerchantResponse } from '@/lib/definitions';
 
 export default function MerchantsList() {
+    const trpc = useTRPC();
     const queryClient = useQueryClient();
     const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useMerchantsTableStore();
 
@@ -68,7 +71,29 @@ export default function MerchantsList() {
         ...filterParams,
     }), [page, per_page, sortParams, filterParams]);
 
-    const { data, isLoading, isFetching } = useQuery(merchantsListQueryOptions(queryParams));
+    // Build tRPC query params
+    const trpcQueryParams = useMemo(() => {
+        const params: Record<string, string | undefined> = {
+            page: page.toString(),
+            per_page: per_page.toString(),
+        };
+        if (queryParams.search) params.search = queryParams.search;
+        if (queryParams.status) params.status = queryParams.status;
+        if (queryParams.merchantType) params.merchantType = queryParams.merchantType;
+        if (queryParams.kyc_verified !== undefined) params.kyc_verified = queryParams.kyc_verified.toString();
+        if (queryParams.sort && queryParams.sort.length > 0) {
+            params.sort = queryParams.sort.join(',');
+        }
+        return params;
+    }, [queryParams, page, per_page]);
+
+    const { data, isLoading, isFetching, error } = useQuery(
+        trpc.merchants.list.queryOptions(trpcQueryParams)
+    );
+
+    if (error) {
+        console.error('Merchants query error:', error);
+    }
 
     // Dynamically prefetch the next 2 pages when page changes
     useEffect(() => {
@@ -90,23 +115,21 @@ export default function MerchantsList() {
         // Prefetch all next pages in parallel with error handling
         if (pagesToPrefetch.length > 0) {
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: MerchantListParams = {
-                    ...queryParams,
-                    page: nextPage,
+                const nextPageParams: Record<string, string | undefined> = {
+                    ...trpcQueryParams,
+                    page: nextPage.toString(),
                 };
 
                 // Only prefetch if not already in cache
-                const cachedData = queryClient.getQueryData(
-                    merchantsListQueryOptions(nextPageParams).queryKey
-                );
+                const queryKey = trpc.merchants.list.queryKey(nextPageParams);
+                const cachedData = queryClient.getQueryData(queryKey);
 
                 if (!cachedData) {
                     // Cancel any existing prefetch for this page using query cancellation
-                    const queryKey = merchantsListQueryOptions(nextPageParams).queryKey;
                     queryClient.cancelQueries({ queryKey });
 
                     // Prefetch the next page with error handling
-                    queryClient.prefetchQuery(merchantsListQueryOptions(nextPageParams))
+                    queryClient.prefetchQuery(trpc.merchants.list.queryOptions(nextPageParams))
                         .catch((error) => {
                             // Only log if not cancelled (cancelled queries are expected during cleanup)
                             if (error.name !== 'AbortError' && !error.message?.includes('cancel')) {
@@ -121,25 +144,25 @@ export default function MerchantsList() {
         return () => {
             // Cancel all pending prefetch queries for next pages
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: MerchantListParams = {
-                    ...queryParams,
-                    page: nextPage,
+                const nextPageParams: Record<string, string | undefined> = {
+                    ...trpcQueryParams,
+                    page: nextPage.toString(),
                 };
-                const queryKey = merchantsListQueryOptions(nextPageParams).queryKey;
+                const queryKey = trpc.merchants.list.queryKey(nextPageParams);
                 queryClient.cancelQueries({ queryKey });
             });
         };
-    }, [queryParams, data, queryClient]);
+    }, [trpcQueryParams, data, queryClient, trpc]);
 
     // Extract merchants and pagination metadata
-    const merchants = data?.data ?? [];
+    const merchants = (data as PaginatedMerchantResponse | undefined)?.data ?? [];
     const paginationMeta = data ? {
-        pageNumber: data.pageNumber,
-        pageSize: data.pageSize,
-        totalElements: data.totalElements,
-        totalPages: data.totalPages,
-        last: data.last,
-        first: data.first,
+        pageNumber: (data as unknown as PaginatedMerchantResponse).pageNumber ?? pagination.pageIndex,
+        pageSize: (data as unknown as PaginatedMerchantResponse).pageSize ?? per_page,
+        totalElements: (data as unknown as PaginatedMerchantResponse).totalElements ?? 0,
+        totalPages: (data as unknown as PaginatedMerchantResponse).totalPages ?? 0,
+        last: (data as unknown as PaginatedMerchantResponse).last ?? true,
+        first: (data as unknown as PaginatedMerchantResponse).first ?? true,
     } : {
         pageNumber: pagination.pageIndex,
         pageSize: per_page,

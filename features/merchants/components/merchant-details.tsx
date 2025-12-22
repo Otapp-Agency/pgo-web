@@ -1,6 +1,7 @@
 'use client';
 
-import { useMerchantDetail } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { IconArrowLeft, IconLoader } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
@@ -17,7 +18,10 @@ interface MerchantDetailsProps {
 
 export default function MerchantDetails({ merchantUid }: MerchantDetailsProps) {
     const router = useRouter();
-    const { data: merchant, isLoading, error } = useMerchantDetail(merchantUid);
+    const trpc = useTRPC();
+    const { data: merchant, isLoading, error } = useQuery(
+        trpc.merchants.getByUid.queryOptions({ uid: merchantUid })
+    );
 
     if (isLoading) {
         return (

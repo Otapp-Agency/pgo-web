@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { IconLoader, IconTrash, IconPlus, IconCopy, IconCheck } from '@tabler/icons-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { MerchantApiKey } from '@/lib/definitions';
-import { useMerchantApiKeys, useCreateApiKey, useRevokeApiKey } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface MerchantApiKeysTabProps {
     merchantUid: string;
@@ -51,9 +52,40 @@ export default function MerchantApiKeysTab({ merchantUid }: MerchantApiKeysTabPr
     const [revokingKey, setRevokingKey] = useState<string | null>(null);
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-    const { data, isLoading, error } = useMerchantApiKeys(merchantUid, page, perPage);
-    const createMutation = useCreateApiKey();
-    const revokeMutation = useRevokeApiKey();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const { data, isLoading, error } = useQuery(
+        trpc.merchants.getApiKeys.queryOptions({
+            uid: merchantUid,
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
+    );
+
+    const createMutation = useMutation(
+        trpc.merchants.createApiKey.mutationOptions({
+            onSuccess: (data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['merchant-detail', variables.uid, 'api-keys'] });
+                toast.success(data.message || 'API key created successfully');
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to create API key');
+            },
+        })
+    );
+
+    const revokeMutation = useMutation(
+        trpc.merchants.revokeApiKey.mutationOptions({
+            onSuccess: (data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['merchant-detail', variables.uid, 'api-keys'] });
+                toast.success(data.message || 'API key revoked successfully');
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to revoke API key');
+            },
+        })
+    );
 
     const apiKeys = data?.data || [];
     const paginationMeta = data ? {
@@ -72,7 +104,7 @@ export default function MerchantApiKeysTab({ merchantUid }: MerchantApiKeysTabPr
 
     const handleCreate = () => {
         createMutation.mutate(
-            { uid: merchantUid },
+            { uid: merchantUid, body: {} },
             {
                 onSuccess: (response) => {
                     setNewApiKey(response.data);
@@ -153,8 +185,8 @@ export default function MerchantApiKeysTab({ merchantUid }: MerchantApiKeysTabPr
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {apiKeys.map((key) => (
-                                            <TableRow key={key.apiKey}>
+                                        {apiKeys.map((key: MerchantApiKey) => (
+                                            <TableRow key={key.apiKey as string}>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <code className="font-mono text-sm">{key.apiKey}</code>

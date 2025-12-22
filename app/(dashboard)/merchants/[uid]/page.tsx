@@ -1,10 +1,11 @@
-import { HydrateClient, prefetchMerchantDetail } from '@/features/merchants/queries/server';
 import { requirePermission } from '@/lib/auth/auth';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import MerchantDetails from '@/features/merchants/components/merchant-details';
 import { PageSkeleton } from '@/components/ui/page-skeleton';
+import { HydrateClient, getQueryClient } from '@/lib/server-query-client';
+import { trpc } from '@/lib/trpc/server';
 
 export default async function MerchantDetailPage({
     params,
@@ -13,7 +14,8 @@ export default async function MerchantDetailPage({
 }) {
     await requirePermission(PERMISSIONS.MERCHANTS.VIEW);
     const { uid } = await params;
-    await prefetchMerchantDetail(uid);
+    const queryClient = getQueryClient();
+    void queryClient.prefetchQuery(trpc.merchants.getByUid.queryOptions({ uid }));
 
     return (
         <HydrateClient>

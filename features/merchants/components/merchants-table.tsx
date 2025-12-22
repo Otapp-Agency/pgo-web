@@ -26,12 +26,13 @@ import {
     useReactTable,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
-import { toast } from "sonner"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Merchant, MerchantSchema } from "@/lib/definitions"
 import { useMerchantsTableStore } from "@/lib/stores/merchants-table-store"
-import { useDeleteMerchant, useUpdateMerchantStatus } from "@/features/merchants/queries/merchants"
+import { useTRPC } from '@/lib/trpc/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { BankAccountsDrawer } from "./bank-accounts-drawer"
 import { useRouter } from "next/navigation"
 
@@ -434,8 +435,32 @@ function ActionCell({ merchant }: ActionCellProps) {
     const [selectedStatus, setSelectedStatus] = React.useState<'ACTIVE' | 'SUSPENDED' | 'INACTIVE'>('ACTIVE')
     const [statusReason, setStatusReason] = React.useState('')
 
-    const deleteMutation = useDeleteMerchant()
-    const updateStatusMutation = useUpdateMerchantStatus()
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const deleteMutation = useMutation(
+        trpc.merchants.delete.mutationOptions({
+            onSuccess: (data) => {
+                queryClient.invalidateQueries({ queryKey: ['merchants', 'list'] });
+                toast.success(data.message || 'Merchant deleted successfully');
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to delete merchant');
+            },
+        })
+    );
+
+    const updateStatusMutation = useMutation(
+        trpc.merchants.updateStatus.mutationOptions({
+            onSuccess: (data) => {
+                queryClient.invalidateQueries({ queryKey: ['merchants', 'list'] });
+                toast.success(data.message || 'Merchant status updated successfully');
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to update merchant status');
+            },
+        })
+    );
 
     const isPending = deleteMutation.isPending || updateStatusMutation.isPending
 
@@ -444,7 +469,7 @@ function ActionCell({ merchant }: ActionCellProps) {
             toast.error("Merchant UID is missing, cannot delete.")
             return
         }
-        deleteMutation.mutate(merchant.uid, {
+        deleteMutation.mutate({ uid: merchant.uid }, {
             onSuccess: () => {
                 setShowDeleteDialog(false)
             }

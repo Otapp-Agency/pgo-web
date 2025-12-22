@@ -34,7 +34,9 @@ import { Separator } from '@/components/ui/separator';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 import { BankAccount } from '@/lib/definitions';
-import { useMerchantBankAccounts, useDeactivateBankAccount } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { BankAccountForm } from './bank-account-form';
 
 interface BankAccountsDrawerProps {
@@ -59,9 +61,26 @@ export function BankAccountsDrawer({ open, onOpenChange, merchantUid, merchantNa
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [deletingAccount, setDeletingAccount] = useState<BankAccount | null>(null);
 
-    const { data: bankAccounts = [], isLoading } = useMerchantBankAccounts(merchantUid);
-    const deactivateMutation = useDeactivateBankAccount();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const isMobile = useIsMobile();
+
+    const { data: bankAccountsResponse, isLoading } = useQuery(
+        trpc.merchants.getBankAccounts.queryOptions({ uid: merchantUid })
+    );
+    const bankAccounts = (bankAccountsResponse?.data ?? []) as BankAccount[];
+
+    const deactivateMutation = useMutation(
+        trpc.merchants.deactivateBankAccount.mutationOptions({
+            onSuccess: (data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['bank-accounts', 'list', variables.uid] });
+                toast.success(data.message || 'Bank account deactivated successfully');
+            },
+            onError: (error: Error) => {
+                toast.error(error.message || 'Failed to deactivate bank account');
+            },
+        })
+    );
 
     const handleAddNew = () => {
         setEditingAccount(null);
@@ -81,7 +100,7 @@ export function BankAccountsDrawer({ open, onOpenChange, merchantUid, merchantNa
         if (!deletingAccount?.uid) return;
 
         deactivateMutation.mutate(
-            { merchantUid, bankAccountUid: deletingAccount.uid },
+            { uid: merchantUid, bankAccountUid: deletingAccount.uid },
             {
                 onSuccess: () => {
                     setDeletingAccount(null);
