@@ -11,10 +11,9 @@ import {
     CompleteTransactionDialog,
     CancelTransactionDialog,
 } from './transaction-action-dialogs';
-import { useCanUpdate, retryTransaction } from '@/features/transactions/queries/transactions';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { transactionsKeys } from '@/features/transactions/queries/transactions';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface TransactionOverviewTabProps {
     transaction: Transaction;
@@ -40,8 +39,11 @@ function formatAmount(amount: string): string {
 
 export default function TransactionOverviewTab({ transaction, numericId }: TransactionOverviewTabProps) {
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
     // Use numeric ID for backend API calls that expect Long type
-    const { data: canUpdate } = useCanUpdate(numericId);
+    const { data: canUpdate } = useQuery(
+        trpc.transactions.canUpdate.queryOptions({ id: numericId })
+    );
 
     const status = (transaction.status || '').toUpperCase();
     const getStatusConfig = () => {
@@ -96,18 +98,26 @@ export default function TransactionOverviewTab({ transaction, numericId }: Trans
 
     const statusConfig = getStatusConfig();
 
-    const retryMutation = useMutation({
-        mutationFn: () => retryTransaction(numericId),
-        onSuccess: (data) => {
-            // Invalidate all detail queries
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.details() });
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
-            toast.success(data.message || 'Transaction retry initiated successfully');
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to retry transaction');
-        },
-    });
+    const retryMutation = useMutation(
+        trpc.transactions.retry.mutationOptions()
+    );
+
+    const handleRetryMutation = () => {
+        retryMutation.mutate(
+            { id: numericId },
+            {
+                onSuccess: (data) => {
+                    // Invalidate all detail queries
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.list.queryKey() });
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transaction.uid || transaction.id }) });
+                    toast.success(data.message || 'Transaction retry initiated successfully');
+                },
+                onError: (error) => {
+                    toast.error(error.message || 'Failed to retry transaction');
+                },
+            }
+        );
+    };
 
     const formattedAmount = transaction.amount && transaction.currency
         ? `${transaction.currency} ${formatAmount(transaction.amount)}`
@@ -292,7 +302,7 @@ export default function TransactionOverviewTab({ transaction, numericId }: Trans
                             {canRetry && canUpdate?.canUpdate && (
                                 <Button
                                     variant="outline"
-                                    onClick={() => retryMutation.mutate()}
+                                    onClick={handleRetryMutation}
                                     disabled={retryMutation.isPending}
                                 >
                                     {retryMutation.isPending ? (

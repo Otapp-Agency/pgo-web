@@ -1,6 +1,6 @@
 'use client';
 
-import { useProcessingHistory } from '@/features/transactions/queries/transactions';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IconLoader } from '@tabler/icons-react';
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ import {
     TimelineTitle,
     TimelineDescription,
 } from '@/components/timeline';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface TransactionProcessingHistoryTabProps {
     transactionId: string;
@@ -40,7 +41,10 @@ function getStatusBadgeVariant(status: string): "default" | "destructive" | "sec
 }
 
 export default function TransactionProcessingHistoryTab({ transactionId }: TransactionProcessingHistoryTabProps) {
-    const { data: history, isLoading, error } = useProcessingHistory(transactionId);
+    const trpc = useTRPC();
+    const { data: history, isLoading, error } = useQuery(
+        trpc.transactions.processingHistory.queryOptions({ id: transactionId })
+    );
 
     if (isLoading) {
         return (

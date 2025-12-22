@@ -1,17 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import React, { Suspense } from 'react'
-import { getTransactionDetail } from '../queries/transactions';
-import { useQuery } from '@tanstack/react-query';
-import { ErrorBoundary } from 'react-error-boundary';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { TransactionDetailsSkeleton } from './transaction-details-skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { IconArrowLeft, IconLoader } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import TransactionOverviewTab from './transaction-overview-tab';
 import TransactionProcessingHistoryTab from './transaction-processing-history-tab';
 import TransactionAuditTrailTab from './transaction-audit-trail-tab';
+import { useTRPC } from '@/lib/trpc/client';
+import type { Transaction } from '@/lib/definitions';
 
 type Props = {
     transactionId: string;
@@ -19,10 +18,13 @@ type Props = {
 
 function TransactionDetails({ transactionId }: Props) {
     const router = useRouter();
-    const { data: transaction, isLoading, error } = useQuery({
-        queryKey: ['transaction', transactionId],
-        queryFn: () => getTransactionDetail(transactionId),
-    });
+    const trpc = useTRPC();
+    const { data: transactionData, isLoading, error } = useSuspenseQuery(
+        trpc.transactions.getByUid.queryOptions({ id: transactionId })
+    );
+
+    // Type assertion: useSuspenseQuery data may not be fully typed
+    const transaction = transactionData as Transaction;
 
     if (isLoading) {
         return <TransactionDetailsSkeleton />;
@@ -50,11 +52,6 @@ function TransactionDetails({ transactionId }: Props) {
     const formattedAmount = transaction.amount && transaction.currency
         ? `${transaction.currency} ${parseFloat(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         : 'N/A';
-
-    // Helper to check if a string is a numeric ID (all digits)
-    const isNumericId = (id: string): boolean => {
-        return /^\d+$/.test(id);
-    };
 
     // The backend API endpoints for processing-history, audit-trail, and can-update
     // require a numeric Long ID. The transaction.id field from the backend response

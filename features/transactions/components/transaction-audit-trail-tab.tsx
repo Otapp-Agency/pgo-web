@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuditTrail } from '@/features/transactions/queries/transactions';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { IconLoader } from '@tabler/icons-react';
@@ -13,6 +13,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTRPC } from '@/lib/trpc/client';
+import type { AuditTrailEntry } from '@/lib/definitions';
 
 interface TransactionAuditTrailTabProps {
     transactionId: string;
@@ -27,7 +29,10 @@ function formatDate(dateString: string): string {
 }
 
 export default function TransactionAuditTrailTab({ transactionId }: TransactionAuditTrailTabProps) {
-    const { data: auditTrail, isLoading, error } = useAuditTrail(transactionId);
+    const trpc = useTRPC();
+    const { data: auditTrail, isLoading, error } = useQuery(
+        trpc.transactions.auditTrail.queryOptions({ id: transactionId })
+    );
 
     if (isLoading) {
         return (
@@ -54,7 +59,8 @@ export default function TransactionAuditTrailTab({ transactionId }: TransactionA
         );
     }
 
-    if (!auditTrail || auditTrail.length === 0) {
+    // Type guard: ensure auditTrail is an array
+    if (!auditTrail || !Array.isArray(auditTrail) || auditTrail.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -70,8 +76,9 @@ export default function TransactionAuditTrailTab({ transactionId }: TransactionA
         );
     }
 
-    // Sort by timestamp descending (most recent first)
-    const sortedAuditTrail = [...auditTrail].sort((a, b) => {
+    // Type assert and sort by timestamp descending (most recent first)
+    const auditTrailArray: AuditTrailEntry[] = auditTrail as AuditTrailEntry[];
+    const sortedAuditTrail = auditTrailArray.slice().sort((a, b) => {
         const dateA = new Date(a.timestamp).getTime();
         const dateB = new Date(b.timestamp).getTime();
         // Handle invalid dates by treating them as oldest

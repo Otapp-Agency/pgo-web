@@ -17,12 +17,17 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { MonthlySummaryCards } from './monthly-summary-cards';
-import {
-    transactionStatsQueryOptions,
-    getCurrentPeriod,
-} from '@/features/transactions/queries/reports';
-import { merchantsListQueryOptions } from '@/features/merchants/queries/merchants';
+import { useTRPC } from '@/lib/trpc/client';
 import type { MonthlyTransactionSummaryParams } from '@/lib/definitions';
+
+// Helper to get current period
+function getCurrentPeriod() {
+    const now = new Date();
+    return {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1, // JavaScript months are 0-indexed
+    };
+}
 
 const MONTHS = [
     { value: '1', label: 'January' },
@@ -172,16 +177,28 @@ export function MonthlySummarySection() {
         return params;
     }, [selectedYear, selectedMonth, selectedMerchant]);
 
+    const trpc = useTRPC();
+
+    // Calculate date range for the selected month
+    const startDate = `${queryParams.year}-${queryParams.month.toString().padStart(2, '0')}-01`;
+    const endDate = new Date(queryParams.year, queryParams.month, 0).toISOString().split('T')[0];
+
     // Fetch transaction stats (daily stats)
     const {
         data: statsData,
         isLoading: isStatsLoading,
         isFetching: isStatsFetching,
-    } = useQuery(transactionStatsQueryOptions(queryParams));
+    } = useQuery(
+        trpc.transactions.stats.queryOptions({
+            start_date: startDate,
+            end_date: endDate,
+            ...(queryParams.merchant_id && { merchantId: queryParams.merchant_id }),
+        })
+    );
 
     // Fetch merchants for filter dropdown
     const { data: merchantsData, isLoading: isMerchantsLoading } = useQuery(
-        merchantsListQueryOptions({ page: 0, per_page: 100 })
+        trpc.merchants.list.queryOptions({ page: '0', per_page: '100' })
     );
 
     const merchants = merchantsData?.data ?? [];

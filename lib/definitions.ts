@@ -337,6 +337,7 @@ import type { PaginatedApiResponse } from '@/lib/types'
 export type PaginatedDisbursementResponse = PaginatedApiResponse<Disbursement>
 export type PaginatedUserResponse = PaginatedApiResponse<User>
 export type PaginatedMerchantResponse = PaginatedApiResponse<Merchant>
+export type PaginatedTransactionResponse = PaginatedApiResponse<Transaction>
 
 // Merchant Activity Summary Schema
 export const MerchantActivitySummarySchema = z.object({

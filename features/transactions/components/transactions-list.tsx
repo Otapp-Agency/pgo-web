@@ -1,61 +1,52 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { TransactionTable } from './transaction-table';
-import { TransactionListParams, transactionsKeys, normalizeTransactionParams } from '@/features/transactions/queries/transactions';
 import { useTransactionsTableStore } from '@/lib/stores/transactions-table-store';
-import { QUERY_CACHE } from '@/lib/config/constants';
-import { getTransactionsList } from '@/features/transactions/queries/transactions';
+import { useTRPC } from '@/lib/trpc/client';
+import type { PaginatedTransactionResponse } from '@/lib/definitions';
 
 export default function TransactionsList() {
     // Get filter state from store
     const { pagination, sorting, filters } = useTransactionsTableStore();
+    const trpc = useTRPC();
 
     // Build query params from store state
-    const queryParams: TransactionListParams = {
+    const queryParams = {
         // Pagination: convert 0-based pageIndex to 1-based page for API
-        page: pagination.pageIndex + 1,
-        per_page: pagination.pageSize,
+        page: (pagination.pageIndex + 1).toString(),
+        per_page: pagination.pageSize.toString(),
         // Server-side filters
-        status: filters.status || undefined,
-        start_date: filters.startDate || undefined,
-        end_date: filters.endDate || undefined,
-        amount_min: filters.amountMin || undefined,
-        amount_max: filters.amountMax || undefined,
-        search: filters.search || undefined,
+        ...(filters.status && { status: filters.status }),
+        ...(filters.startDate && { start_date: filters.startDate }),
+        ...(filters.endDate && { end_date: filters.endDate }),
+        ...(filters.amountMin && { amount_min: filters.amountMin }),
+        ...(filters.amountMax && { amount_max: filters.amountMax }),
+        ...(filters.search && { search: filters.search }),
         // Sorting: convert TanStack sorting format to API sort format
-        sort: sorting.length > 0
-            ? sorting.map(s => `${s.id},${s.desc ? 'desc' : 'asc'}`)
-            : undefined,
+        ...(sorting.length > 0 && {
+            sort: sorting.map(s => `${s.id},${s.desc ? 'desc' : 'asc'}`).join(',')
+        }),
     };
 
-    const normalizedParams = normalizeTransactionParams(queryParams);
+    // Use useSuspenseQuery for Suspense support
+    const queryResult = useSuspenseQuery(
+        trpc.transactions.list.queryOptions(queryParams)
+    );
 
-    const queryOptions = {
-        queryKey: transactionsKeys.list(normalizedParams),
-        queryFn: () => getTransactionsList(
-            normalizedParams.page,
-            normalizedParams.per_page,
-            normalizedParams.status,
-            normalizedParams.start_date,
-            normalizedParams.end_date,
-            normalizedParams.amount_min ? Number(normalizedParams.amount_min) : undefined,
-            normalizedParams.amount_max ? Number(normalizedParams.amount_max) : undefined,
-            normalizedParams.search, normalizedParams.sort),
-        staleTime: QUERY_CACHE.STALE_TIME_LIST,
-    };
-
-    const { data, isLoading, isFetching } = useQuery(queryOptions);
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as PaginatedTransactionResponse;
+    const { isFetching } = queryResult;
 
     // Extract transactions and pagination meta from response
-    const transactions = data?.data ?? [];
+    const transactions = data.data ?? [];
     const paginationMeta = {
-        pageNumber: data?.pageNumber ?? 1,
-        pageSize: data?.pageSize ?? pagination.pageSize,
-        totalElements: data?.totalElements ?? 0,
-        totalPages: data?.totalPages ?? 0,
-        last: data?.last ?? true,
-        first: data?.first ?? true,
+        pageNumber: data.pageNumber ?? 1,
+        pageSize: data.pageSize ?? pagination.pageSize,
+        totalElements: data.totalElements ?? 0,
+        totalPages: data.totalPages ?? 0,
+        last: data.last ?? true,
+        first: data.first ?? true,
     };
 
     return (
@@ -63,7 +54,7 @@ export default function TransactionsList() {
             <TransactionTable
                 data={transactions}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
+                isLoading={isFetching}
             />
         </div>
     );

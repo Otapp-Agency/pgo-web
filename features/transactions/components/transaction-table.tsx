@@ -30,8 +30,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Transaction, TransactionSchema } from "@/lib/definitions"
-import { exportTransactions, ExportFormat } from "@/features/transactions/queries/export"
-import { transactionsKeys, retryTransaction } from "@/features/transactions/queries/transactions"
+import { useTRPC } from "@/lib/trpc/client"
 import {
     RefundTransactionDialog,
     CompleteTransactionDialog,
@@ -276,6 +275,7 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
     const drawerContext = React.useContext(TransactionDrawerContext)
     const isMobile = useIsMobile()
     const queryClient = useQueryClient()
+    const trpc = useTRPC()
 
     // Use context to control drawer state
     const isDetailsOpen = drawerContext?.openTransactionUid === transaction.uid
@@ -286,20 +286,28 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
     }
 
     // Retry mutation
-    const retryMutation = useMutation({
-        mutationFn: () => retryTransaction(transactionId),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() })
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.detail(transactionId) })
-            toast.success(data.message || 'Transaction retry initiated successfully')
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to retry transaction')
-        },
-    })
+    const retryMutation = useMutation(
+        trpc.transactions.retry.mutationOptions()
+    )
+
+    const handleRetryMutation = () => {
+        retryMutation.mutate(
+            { id: transactionId },
+            {
+                onSuccess: (data) => {
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.list.queryKey() })
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transactionId }) })
+                    toast.success(data.message || 'Transaction retry initiated successfully')
+                },
+                onError: (error: Error) => {
+                    toast.error(error.message || 'Failed to retry transaction')
+                },
+            }
+        )
+    }
 
     const handleRetry = () => {
-        retryMutation.mutate()
+        handleRetryMutation()
     }
 
     // Determine which actions are available based on status
@@ -808,37 +816,57 @@ export function TransactionTable({
     })
 
     // Export handler using store filters
-    const handleExport = React.useCallback(async (format: ExportFormat) => {
+    const trpc = useTRPC()
+    const handleExport = React.useCallback(async (format: 'csv' | 'excel') => {
         try {
-            // Build export params from store filters
-            const exportParams: Parameters<typeof exportTransactions>[0] = {
-                format,
-            }
+            // Build search criteria from store filters
+            const searchCriteria: Record<string, unknown> = {}
 
             // Add filters from store
             if (filters.status) {
-                exportParams.status = filters.status
+                searchCriteria.status = filters.status
             }
             if (filters.startDate) {
-                exportParams.start_date = filters.startDate
+                searchCriteria.start_date = filters.startDate
             }
             if (filters.endDate) {
-                exportParams.end_date = filters.endDate
+                searchCriteria.end_date = filters.endDate
             }
             if (filters.amountMin) {
-                exportParams.amount_min = filters.amountMin
+                searchCriteria.amount_min = filters.amountMin
             }
             if (filters.amountMax) {
-                exportParams.amount_max = filters.amountMax
+                searchCriteria.amount_max = filters.amountMax
             }
 
-            await exportTransactions(exportParams)
+            // Call tRPC export mutation
+            const result = await trpc.transactions.export.mutate({
+                format,
+                searchCriteria,
+            })
+
+            // Convert base64 to blob and download
+            const binaryString = atob(result.data)
+            const bytes = new Uint8Array(binaryString.length)
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i)
+            }
+            const blob = new Blob([bytes], { type: result.contentType })
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = result.filename
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+
             toast.success(`Exporting transactions as ${format.toUpperCase()}...`)
         } catch (error) {
             console.error('Export error:', error)
             toast.error(error instanceof Error ? error.message : 'Failed to export transactions')
         }
-    }, [filters])
+    }, [filters, trpc])
 
     return (
         <TransactionDrawerContext.Provider value={{ openTransactionUid, setOpenTransactionUid }}>
@@ -892,10 +920,10 @@ export function TransactionTable({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                                <DropdownMenuItem onClick={() => handleExport('csv' as 'csv' | 'excel')}>
                                     Export as CSV
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                                <DropdownMenuItem onClick={() => handleExport('excel' as 'csv' | 'excel')}>
                                     Export as Excel
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

@@ -17,13 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-
-import {
-    transactionsKeys,
-    refundTransaction,
-    completeTransaction,
-    cancelTransaction,
-} from '@/features/transactions/queries/transactions';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface TransactionDialogProps {
     transactionId: string;
@@ -46,34 +40,39 @@ export function RefundTransactionDialog({
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
 
-    const refundMutation = useMutation({
-        mutationFn: () => {
-            if (!amount) {
-                throw new Error('Transaction amount is required for refund');
-            }
-            return refundTransaction(transactionId, {
-                refundAmount: amount,
-                reason: reason || undefined
-            });
-        },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.detail(transactionId) });
-            toast.success(data.message || 'Transaction refunded successfully');
-            handleClose();
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to refund transaction');
-        },
-    });
+    const refundMutation = useMutation(
+        trpc.transactions.refund.mutationOptions()
+    );
 
-    const handleRefund = () => {
+    const handleRefundMutation = () => {
         if (!amount) {
-            toast.error('Cannot refund: Transaction amount is missing');
+            toast.error('Transaction amount is required for refund');
             return;
         }
-        refundMutation.mutate();
+        refundMutation.mutate(
+            {
+                id: transactionId,
+                refundAmount: amount,
+                reason: reason || undefined,
+            },
+            {
+                onSuccess: (data) => {
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.list.queryKey() });
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transactionId }) });
+                    toast.success(data.message || 'Transaction refunded successfully');
+                    handleClose();
+                },
+                onError: (error: Error) => {
+                    toast.error(error.message || 'Failed to refund transaction');
+                },
+            }
+        );
+    };
+
+    const handleRefund = () => {
+        handleRefundMutation();
     };
 
     const handleClose = () => {
@@ -166,22 +165,34 @@ export function CompleteTransactionDialog({
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
 
-    const completeMutation = useMutation({
-        mutationFn: () => completeTransaction(transactionId, { reason: reason || undefined }),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.detail(transactionId) });
-            toast.success(data.message || 'Transaction completed successfully');
-            handleClose();
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to complete transaction');
-        },
-    });
+    const completeMutation = useMutation(
+        trpc.transactions.complete.mutationOptions()
+    );
+
+    const handleCompleteMutation = () => {
+        completeMutation.mutate(
+            {
+                id: transactionId,
+                reason: reason || undefined,
+            },
+            {
+                onSuccess: (data) => {
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.list.queryKey() });
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transactionId }) });
+                    toast.success(data.message || 'Transaction completed successfully');
+                    handleClose();
+                },
+                onError: (error: Error) => {
+                    toast.error(error.message || 'Failed to complete transaction');
+                },
+            }
+        );
+    };
 
     const handleComplete = () => {
-        completeMutation.mutate();
+        handleCompleteMutation();
     };
 
     const handleClose = () => {
@@ -273,22 +284,34 @@ export function CancelTransactionDialog({
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
 
-    const cancelMutation = useMutation({
-        mutationFn: () => cancelTransaction(transactionId, { reason: reason || undefined }),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: transactionsKeys.detail(transactionId) });
-            toast.success(data.message || 'Transaction cancelled successfully');
-            handleClose();
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to cancel transaction');
-        },
-    });
+    const cancelMutation = useMutation(
+        trpc.transactions.cancel.mutationOptions()
+    );
+
+    const handleCancelMutation = () => {
+        cancelMutation.mutate(
+            {
+                id: transactionId,
+                reason: reason || undefined,
+            },
+            {
+                onSuccess: (data) => {
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.list.queryKey() });
+                    queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transactionId }) });
+                    toast.success(data.message || 'Transaction cancelled successfully');
+                    handleClose();
+                },
+                onError: (error: Error) => {
+                    toast.error(error.message || 'Failed to cancel transaction');
+                },
+            }
+        );
+    };
 
     const handleCancel = () => {
-        cancelMutation.mutate();
+        handleCancelMutation();
     };
 
     const handleClose = () => {
