@@ -2,10 +2,8 @@ import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { verifySession } from "@/lib/auth/services/auth.service"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import {
-  HydrateClient,
-  prefetchDashboardStats,
-} from "@/features/dashboard/queries/server"
+import { getQueryClient, trpc } from "@/lib/trpc/server"
+import { HydrateClient } from "@/lib/server-query-client"
 import { DashboardStatsSection } from "@/features/dashboard/components/dashboard-stats-section"
 import { RecentActivitySection } from "@/features/dashboard/components/recent-activity-section"
 import { SummaryCardsSkeleton } from "@/components/ui/page-skeleton"
@@ -15,15 +13,10 @@ export default async function Page() {
   await verifySession()
 
   // Prefetch dashboard stats server-side
-  // Wrap in try-catch to allow graceful degradation if prefetch fails
-  // Client-side component will handle data fetching and error states
-  try {
-    await prefetchDashboardStats()
-  } catch (error) {
-    // Log error but don't crash the page render
-    // The client-side DashboardStatsSection will handle fetching and error display
-    console.error('Failed to prefetch dashboard stats:', error)
-  }
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.dashboard.stats.queryOptions()
+  );
 
   return (
     <HydrateClient>

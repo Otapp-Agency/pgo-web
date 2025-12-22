@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { dashboardStatsQueryOptions } from '../queries/dashboard';
+import { useTRPC } from '@/lib/trpc/client';
 import { RecentTransactionsTable } from './recent-transactions-table';
 import { RecentDisbursementsTable } from './recent-disbursements-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,12 +13,13 @@ interface RecentActivitySectionProps {
 }
 
 export function RecentActivitySection({ params }: RecentActivitySectionProps) {
+    const trpc = useTRPC();
     const {
         data: statsData,
         isLoading,
         isFetching,
         error,
-    } = useQuery(dashboardStatsQueryOptions(params));
+    } = useQuery(trpc.dashboard.stats.queryOptions(params));
 
     const recentActivity = statsData?.recentActivity;
     const transactions = recentActivity?.transactions || [];

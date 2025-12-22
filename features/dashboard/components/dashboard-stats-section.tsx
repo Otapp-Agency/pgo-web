@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { dashboardStatsQueryOptions } from '../queries/dashboard';
+import { useTRPC } from '@/lib/trpc/client';
 import { SectionCards } from '@/components/section-cards';
 import { SummaryCardsSkeleton } from '@/components/ui/page-skeleton';
 import type { DashboardStatsParams } from '../types';
@@ -11,12 +11,13 @@ interface DashboardStatsSectionProps {
 }
 
 export function DashboardStatsSection({ params }: DashboardStatsSectionProps) {
+    const trpc = useTRPC();
     const {
         data: statsData,
         isLoading,
         isFetching,
         error,
-    } = useQuery(dashboardStatsQueryOptions(params));
+    } = useQuery(trpc.dashboard.stats.queryOptions(params));
 
     // Show loading skeleton
     if (isLoading) {

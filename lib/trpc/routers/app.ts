@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createTRPCRouter } from '../init';
+import { dashboardRouter } from './dashboard';
 import { disbursementsRouter } from './disbursements';
 import { gatewaysRouter } from './gateways';
 import { merchantsRouter } from './merchants';
@@ -8,6 +9,7 @@ import { usersRouter } from './users';
 
 export const appRouter = createTRPCRouter({
   // Feature routers
+  dashboard: dashboardRouter,
   disbursements: disbursementsRouter,
   gateways: gatewaysRouter,
   merchants: merchantsRouter,
