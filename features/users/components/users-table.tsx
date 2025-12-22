@@ -28,12 +28,12 @@ import {
     VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
-import { useQuery } from "@tanstack/react-query"
+import { useSuspenseQuery } from "@tanstack/react-query"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { User, UserSchema } from "@/lib/definitions"
-import { rolesListQueryOptions } from "@/features/users/queries/roles"
 import { useUsersTableStore } from "@/lib/stores/users-table-store"
+import { useTRPC } from "@/lib/trpc/client"
 
 // Re-export schema for build compatibility
 export const schema = UserSchema
@@ -448,7 +448,12 @@ export function UsersTable({
     const statusColumn = table.getColumn("is_active")
 
     // Fetch all available roles from the server (not just from current page)
-    const { data: roleValues = [] } = useQuery(rolesListQueryOptions())
+    const trpc = useTRPC();
+    const { data: rolesData = [] } = useSuspenseQuery(
+        trpc.users.roles.all.queryOptions()
+    );
+    // Extract role names from Role objects
+    const roleValues = rolesData.map(role => role.name);
 
     // Get role filter value for badge display
     const roleFilterValue = roleColumn?.getFilterValue() as string[] | undefined

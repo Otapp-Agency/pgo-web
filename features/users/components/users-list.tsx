@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { UsersTable } from './users-table';
 import { NewUserDrawer } from './new-user-drawer';
-import { usersListQueryOptions, type UserListParams } from '@/features/users/queries/users';
 import { useUsersTableStore } from '@/lib/stores/users-table-store';
-import { PAGINATION } from '@/lib/config/constants';
+import { useTRPC } from '@/lib/trpc/client';
+import type { PaginatedUserResponse } from '@/lib/definitions';
 
 export default function UsersList() {
     const queryClient = useQueryClient();
     const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useUsersTableStore();
+    const trpc = useTRPC();
 
     // Reset to first page when sorting or filtering changes
     useEffect(() => {
@@ -22,18 +23,19 @@ export default function UsersList() {
     const page = pagination.pageIndex + 1;
     const per_page = pagination.pageSize;
 
-    // Convert sorting state to sort parameter format (e.g., ["username,asc", "email,desc"])
+    // Convert sorting state to sort parameter format (e.g., "username,asc,email,desc")
     const sortParams = useMemo(() => {
+        if (sorting.length === 0) return undefined;
         return sorting.map(sort => {
             const direction = sort.desc ? 'desc' : 'asc';
             return `${sort.id},${direction}`;
-        });
+        }).join(',');
     }, [sorting]);
 
     // Convert column filters to query parameters
     const filterParams = useMemo(() => {
         const params: { role?: string; status?: string } = {};
-        
+
         columnFilters.forEach(filter => {
             if (filter.id === 'role' && Array.isArray(filter.value)) {
                 // For role filter, join multiple values with comma (or use first value)
@@ -49,19 +51,26 @@ export default function UsersList() {
                 }
             }
         });
-        
+
         return params;
     }, [columnFilters]);
 
-    // Memoize queryParams to prevent unnecessary re-renders and ensure stable reference
-    const queryParams: UserListParams = useMemo(() => ({
-        page,
-        per_page,
-        ...(sortParams.length > 0 && { sort: sortParams }),
+    // Build query params for tRPC
+    const queryParams = useMemo(() => ({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ...(sortParams && { sort: sortParams }),
         ...filterParams,
     }), [page, per_page, sortParams, filterParams]);
 
-    const { data, isLoading, isFetching } = useQuery(usersListQueryOptions(queryParams));
+    // Use useSuspenseQuery for Suspense support
+    const queryResult = useSuspenseQuery(
+        trpc.users.list.queryOptions(queryParams)
+    );
+
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as PaginatedUserResponse;
+    const { isFetching } = queryResult;
 
     // Dynamically prefetch the next pages when page changes
     useEffect(() => {
@@ -72,7 +81,7 @@ export default function UsersList() {
 
         // Prefetch next pages if they exist (1-based pagination)
         const pagesToPrefetch: number[] = [];
-        for (let i = 1; i <= PAGINATION.PREFETCH_PAGES_AHEAD; i++) {
+        for (let i = 1; i <= 2; i++) {
             const nextPage = currentPage + i;
             if (nextPage <= totalPages) {
                 pagesToPrefetch.push(nextPage);
@@ -82,23 +91,23 @@ export default function UsersList() {
         // Prefetch all next pages in parallel with error handling
         if (pagesToPrefetch.length > 0) {
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: UserListParams = {
+                const nextPageParams = {
                     ...queryParams,
-                    page: nextPage,
+                    page: nextPage.toString(),
                 };
 
                 // Only prefetch if not already in cache
                 const cachedData = queryClient.getQueryData(
-                    usersListQueryOptions(nextPageParams).queryKey
+                    trpc.users.list.queryKey(nextPageParams)
                 );
 
                 if (!cachedData) {
                     // Cancel any existing prefetch for this page using query cancellation
-                    const queryKey = usersListQueryOptions(nextPageParams).queryKey;
+                    const queryKey = trpc.users.list.queryKey(nextPageParams);
                     queryClient.cancelQueries({ queryKey });
 
                     // Prefetch the next page with error handling
-                    queryClient.prefetchQuery(usersListQueryOptions(nextPageParams))
+                    queryClient.prefetchQuery(trpc.users.list.queryOptions(nextPageParams))
                         .catch((error) => {
                             // Only log if not cancelled (cancelled queries are expected during cleanup)
                             if (error.name !== 'AbortError' && !error.message?.includes('cancel')) {
@@ -113,15 +122,15 @@ export default function UsersList() {
         return () => {
             // Cancel all pending prefetch queries for next pages
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: UserListParams = {
+                const nextPageParams = {
                     ...queryParams,
-                    page: nextPage,
+                    page: nextPage.toString(),
                 };
-                const queryKey = usersListQueryOptions(nextPageParams).queryKey;
+                const queryKey = trpc.users.list.queryKey(nextPageParams);
                 queryClient.cancelQueries({ queryKey });
             });
         };
-    }, [queryParams, data, queryClient]);
+    }, [queryParams, data, queryClient, trpc]);
 
     // Extract users and pagination metadata
     const users = data?.data ?? [];
@@ -150,7 +159,7 @@ export default function UsersList() {
             <UsersTable
                 data={users}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
+                isLoading={isFetching}
             />
         </div>
     )

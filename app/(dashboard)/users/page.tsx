@@ -1,4 +1,5 @@
-import { HydrateClient, prefetchUsersList } from '@/features/users/queries/server';
+import { HydrateClient, getQueryClient } from '@/lib/server-query-client';
+import { trpc } from '@/lib/trpc/server';
 import { Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import UsersList from '@/features/users/components/users-list';
@@ -6,7 +7,13 @@ import { TablePageSkeleton } from '@/components/ui/table-skeleton';
 import { USERS_TABLE_COLUMNS } from '@/components/ui/table-skeleton-presets';
 
 export default async function Page() {
-  await prefetchUsersList();
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.users.list.queryOptions({
+      page: '1',
+      per_page: '15',
+    }),
+  );
 
   return (
     <HydrateClient>

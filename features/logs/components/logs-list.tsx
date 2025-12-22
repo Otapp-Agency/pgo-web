@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { LogsTable } from './logs-table';
-import { auditLogsListQueryOptions, type AuditLogListParams } from '@/features/logs/queries/logs';
 import { useLogsTableStore } from '@/lib/stores/logs-table-store';
+import { useTRPC } from '@/lib/trpc/client';
 import type { AuditLog } from '@/lib/definitions';
 
 export default function LogsList() {
     const queryClient = useQueryClient();
     const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useLogsTableStore();
+    const trpc = useTRPC();
 
     // Reset to first page when sorting or filtering changes
     useEffect(() => {
@@ -21,50 +22,58 @@ export default function LogsList() {
     const page = pagination.pageIndex;
     const per_page = pagination.pageSize;
 
-    // Convert sorting state to sort parameter format (e.g., ["name,asc", "code,desc"])
+    // Convert sorting state to sort parameter format (e.g., "name,asc,code,desc")
     const sortParams = useMemo(() => {
+        if (sorting.length === 0) return undefined;
         return sorting.map(sort => {
             const direction = sort.desc ? 'desc' : 'asc';
             return `${sort.id},${direction}`;
-        });
+        }).join(',');
     }, [sorting]);
 
     // Convert column filters to query parameters for audit logs
     const filterParams = useMemo(() => {
-        const params: Partial<AuditLogListParams> = {};
+        const params: Record<string, string> = {};
 
         columnFilters.forEach(filter => {
             if (filter.id === 'eventType' && Array.isArray(filter.value)) {
                 // For eventType filter, join multiple values with comma
                 const eventTypeValues = filter.value as string[];
                 if (eventTypeValues.length > 0) {
-                    params.eventType = eventTypeValues.join(',');
+                    params.action_type = eventTypeValues.join(',');
                 }
             } else if (filter.id === 'userUid' && filter.value) {
-                params.userUid = filter.value as string;
+                params.user_id = filter.value as string;
             } else if (filter.id === 'merchantUid' && filter.value) {
-                params.merchantUid = filter.value as string;
+                params.merchant_id = filter.value as string;
             } else if (filter.id === 'search_term' && filter.value) {
                 params.search_term = filter.value as string;
             } else if (filter.id === 'startDate' && filter.value) {
-                params.startDate = filter.value as string;
+                params.start_date = filter.value as string;
             } else if (filter.id === 'endDate' && filter.value) {
-                params.endDate = filter.value as string;
+                params.end_date = filter.value as string;
             }
         });
 
         return params;
     }, [columnFilters]);
 
-    // Memoize queryParams to prevent unnecessary re-renders and ensure stable reference
-    const queryParams: AuditLogListParams = useMemo(() => ({
-        page,
-        per_page,
-        ...(sortParams.length > 0 && { sort: sortParams }),
+    // Build query params for tRPC (using frontend param names)
+    const queryParams = useMemo(() => ({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ...(sortParams && { sort: sortParams }),
         ...filterParams,
     }), [page, per_page, sortParams, filterParams]);
 
-    const { data, isLoading, isFetching } = useQuery(auditLogsListQueryOptions(queryParams));
+    // Use useSuspenseQuery for Suspense support
+    const queryResult = useSuspenseQuery(
+        trpc.users.logs.list.queryOptions(queryParams)
+    );
+
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as { data: AuditLog[]; pageNumber: number; pageSize: number; totalElements: number; totalPages: number; last: boolean; first: boolean };
+    const { isFetching } = queryResult;
 
     // Dynamically prefetch the next 2 pages when page changes
     useEffect(() => {
@@ -150,7 +159,7 @@ export default function LogsList() {
             <LogsTable
                 data={auditLogs as unknown as AuditLog[]}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
+                isLoading={isFetching}
             />
         </div>
     )

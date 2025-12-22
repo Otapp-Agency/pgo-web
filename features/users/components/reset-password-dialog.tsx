@@ -18,7 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { usersKeys } from '@/features/users/queries/users';
+import { useTRPC } from '@/lib/trpc/client';
 
 interface ResetPasswordDialogProps {
     userId: string;
@@ -26,53 +26,39 @@ interface ResetPasswordDialogProps {
     trigger?: React.ReactNode;
 }
 
-interface ResetPasswordResponse {
-    message: string;
-    temporaryPassword?: string | null;
-}
-
 export function ResetPasswordDialog({ userId, username, trigger }: ResetPasswordDialogProps) {
     const [open, setOpen] = useState(false);
     const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const queryClient = useQueryClient();
+    const trpc = useTRPC();
 
-    const resetPasswordMutation = useMutation({
-        mutationFn: async (): Promise<ResetPasswordResponse> => {
-            const response = await fetch(`/api/users/${userId}/reset-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({}),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || data.message || 'Failed to reset password');
-            }
-
-            return data;
-        },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
-            toast.success(data.message || 'Password reset successfully');
-            
-            if (data.temporaryPassword) {
-                setTemporaryPassword(data.temporaryPassword);
-            } else {
-                // If no temporary password returned, close dialog
-                setOpen(false);
-            }
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to reset password');
-        },
-    });
+    const resetPasswordMutation = useMutation(
+        trpc.users.resetPassword.mutationOptions()
+    );
 
     const handleReset = () => {
-        resetPasswordMutation.mutate();
+        resetPasswordMutation.mutate(
+            { id: userId },
+            {
+                onSuccess: (data) => {
+                    queryClient.invalidateQueries({ queryKey: trpc.users.list.queryKey() });
+                    toast.success(data.message || 'Password reset successfully');
+
+                    // Backend may return temporaryPassword in the response
+                    const responseData = data as { message: string; temporaryPassword?: string | null };
+                    if (responseData.temporaryPassword) {
+                        setTemporaryPassword(responseData.temporaryPassword);
+                    } else {
+                        // If no temporary password returned, close dialog
+                        setOpen(false);
+                    }
+                },
+                onError: (error) => {
+                    toast.error(error.message || 'Failed to reset password');
+                },
+            }
+        );
     };
 
     const handleCopyPassword = async () => {

@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { RolesTable } from './roles-table';
-import { rolesListQueryOptions, type RoleListParams } from '../queries/roles';
 import { useRolesTableStore } from '@/lib/stores/roles-table-store';
-import { PAGINATION } from '@/lib/config/constants';
+import { useTRPC } from '@/lib/trpc/client';
+import type { PaginatedRoleResponse } from '@/features/roles/types';
 
 export default function RolesList() {
     const queryClient = useQueryClient();
     const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useRolesTableStore();
+    const trpc = useTRPC();
 
     // Reset to first page when sorting or filtering changes
     useEffect(() => {
@@ -21,12 +22,13 @@ export default function RolesList() {
     const page = pagination.pageIndex + 1;
     const per_page = pagination.pageSize;
 
-    // Convert sorting state to sort parameter format (e.g., ["name,asc", "displayName,desc"])
+    // Convert sorting state to sort parameter format (e.g., "name,asc,displayName,desc")
     const sortParams = useMemo(() => {
+        if (sorting.length === 0) return undefined;
         return sorting.map(sort => {
             const direction = sort.desc ? 'desc' : 'asc';
             return `${sort.id},${direction}`;
-        });
+        }).join(',');
     }, [sorting]);
 
     // Convert column filters to query parameters
@@ -42,15 +44,22 @@ export default function RolesList() {
         return params;
     }, [columnFilters]);
 
-    // Memoize queryParams to prevent unnecessary re-renders and ensure stable reference
-    const queryParams: RoleListParams = useMemo(() => ({
-        page,
-        per_page,
-        ...(sortParams.length > 0 && { sort: sortParams }),
+    // Build query params for tRPC
+    const queryParams = useMemo(() => ({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ...(sortParams && { sort: sortParams }),
         ...filterParams,
     }), [page, per_page, sortParams, filterParams]);
 
-    const { data, isLoading, isFetching } = useQuery(rolesListQueryOptions(queryParams));
+    // Use useSuspenseQuery for Suspense support
+    const queryResult = useSuspenseQuery(
+        trpc.users.roles.list.queryOptions(queryParams)
+    );
+
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as PaginatedRoleResponse;
+    const { isFetching } = queryResult;
 
     // Dynamically prefetch the next pages when page changes
     useEffect(() => {
@@ -61,7 +70,7 @@ export default function RolesList() {
 
         // Prefetch next pages if they exist (1-based pagination)
         const pagesToPrefetch: number[] = [];
-        for (let i = 1; i <= PAGINATION.PREFETCH_PAGES_AHEAD; i++) {
+        for (let i = 1; i <= 2; i++) {
             const nextPage = currentPage + i;
             if (nextPage <= totalPages) {
                 pagesToPrefetch.push(nextPage);
@@ -71,23 +80,23 @@ export default function RolesList() {
         // Prefetch all next pages in parallel with error handling
         if (pagesToPrefetch.length > 0) {
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: RoleListParams = {
+                const nextPageParams = {
                     ...queryParams,
-                    page: nextPage,
+                    page: nextPage.toString(),
                 };
 
                 // Only prefetch if not already in cache
                 const cachedData = queryClient.getQueryData(
-                    rolesListQueryOptions(nextPageParams).queryKey
+                    trpc.users.roles.list.queryKey(nextPageParams)
                 );
 
                 if (!cachedData) {
                     // Cancel any existing prefetch for this page using query cancellation
-                    const queryKey = rolesListQueryOptions(nextPageParams).queryKey;
+                    const queryKey = trpc.users.roles.list.queryKey(nextPageParams);
                     queryClient.cancelQueries({ queryKey });
 
                     // Prefetch the next page with error handling
-                    queryClient.prefetchQuery(rolesListQueryOptions(nextPageParams))
+                    queryClient.prefetchQuery(trpc.users.roles.list.queryOptions(nextPageParams))
                         .catch((error) => {
                             // Only log if not cancelled (cancelled queries are expected during cleanup)
                             if (error.name !== 'AbortError' && !error.message?.includes('cancel')) {
@@ -102,15 +111,15 @@ export default function RolesList() {
         return () => {
             // Cancel all pending prefetch queries for next pages
             pagesToPrefetch.forEach((nextPage) => {
-                const nextPageParams: RoleListParams = {
+                const nextPageParams = {
                     ...queryParams,
-                    page: nextPage,
+                    page: nextPage.toString(),
                 };
-                const queryKey = rolesListQueryOptions(nextPageParams).queryKey;
+                const queryKey = trpc.users.roles.list.queryKey(nextPageParams);
                 queryClient.cancelQueries({ queryKey });
             });
         };
-    }, [queryParams, data, queryClient]);
+    }, [queryParams, data, queryClient, trpc]);
 
     // Extract roles and pagination metadata
     const roles = data?.data ?? [];
@@ -138,7 +147,7 @@ export default function RolesList() {
             <RolesTable
                 data={roles}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
+                isLoading={isFetching}
             />
         </div>
     )
