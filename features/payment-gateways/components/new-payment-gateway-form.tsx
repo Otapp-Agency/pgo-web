@@ -33,7 +33,7 @@ const CreatePaymentGatewaySchema = z.object({
             message: 'credentials is required and must be an object',
         }),
     supported_methods: z.array(z.string()).min(1, 'supported_methods is required and must be a non-empty array'),
-    is_active: z.boolean().optional().default(true),
+    is_active: z.boolean(),
 });
 
 type CreatePaymentGatewayInput = z.infer<typeof CreatePaymentGatewaySchema>;
@@ -63,7 +63,10 @@ export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps)
     );
 
     const form = useForm<CreatePaymentGatewayInput>({
-        resolver: zodResolver(CreatePaymentGatewaySchema),
+        resolver: zodResolver(
+            // @ts-expect-error - Zod v4 compatibility issue with @hookform/resolvers v5
+            CreatePaymentGatewaySchema
+        ),
         defaultValues: {
             name: '',
             code: '',
@@ -83,7 +86,7 @@ export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps)
         try {
             // Filter out empty credential values
             const cleanedCredentials = Object.fromEntries(
-                Object.entries(data.credentials).filter(([_, value]) => value !== '')
+                Object.entries(data.credentials).filter(([, value]) => value !== '')
             ) as typeof data.credentials;
 
             const submitData: CreatePaymentGatewayInput = {
@@ -98,8 +101,6 @@ export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps)
             // Error is handled by the mutation's onError callback
         }
     };
-
-    const selectedMethods = form.watch('supported_methods');
 
     return (
         <Form {...form}>

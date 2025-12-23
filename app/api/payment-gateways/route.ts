@@ -96,10 +96,65 @@ export async function GET(request: NextRequest) {
                 }
 
                 // Ensure supportedMethods is an array
+                // Handle case where backend returns JSON string instead of array
+                // OR array of JSON strings (e.g., ['["MNO"]', '["CARD"]'])
                 let supportedMethods: string[] = [];
                 if (Array.isArray(gateway.supportedMethods)) {
-                    supportedMethods = gateway.supportedMethods;
+                    // Backend might return array of JSON strings like ['["MNO"]', '["CARD"]']
+                    // OR array of strings like ['MNO', 'CARD']
+                    const flattened: string[] = [];
+
+                    for (const item of gateway.supportedMethods) {
+                        if (typeof item === 'string') {
+                            // Check if it's a JSON string representation of an array
+                            const trimmed = item.trim();
+                            if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+                                (trimmed.startsWith('"[') && trimmed.endsWith(']"'))) {
+                                try {
+                                    // Parse the JSON string
+                                    let toParse = trimmed;
+                                    if (trimmed.startsWith('"[') && trimmed.endsWith(']"')) {
+                                        toParse = trimmed.slice(1, -1);
+                                    }
+                                    const parsed = JSON.parse(toParse);
+                                    if (Array.isArray(parsed)) {
+                                        // Flatten the parsed array
+                                        flattened.push(...parsed.filter((m): m is string => typeof m === 'string'));
+                                    } else {
+                                        // Not an array after parsing, treat as single method
+                                        flattened.push(item);
+                                    }
+                                } catch {
+                                    // JSON parsing failed, treat as single method
+                                    flattened.push(item);
+                                }
+                            } else {
+                                // Not a JSON string, treat as a regular method name
+                                flattened.push(item);
+                            }
+                        } else if (typeof item === 'object' && item !== null) {
+                            // Handle nested objects/arrays
+                            flattened.push(String(item));
+                        }
+                    }
+
+                    supportedMethods = flattened;
+                } else if (typeof gateway.supportedMethods === 'string') {
+                    // Try to parse as JSON string (e.g., "[\"MNO\"]" or '["MNO"]')
+                    try {
+                        const parsed = JSON.parse(gateway.supportedMethods);
+                        if (Array.isArray(parsed)) {
+                            supportedMethods = parsed.filter((m): m is string => typeof m === 'string');
+                        } else {
+                            // If parsed value is not an array, treat the whole string as a single method
+                            supportedMethods = [gateway.supportedMethods];
+                        }
+                    } catch {
+                        // If JSON parsing fails, treat the whole string as a single method
+                        supportedMethods = [gateway.supportedMethods];
+                    }
                 } else if (gateway.supportedMethods) {
+                    // Fallback: convert to string and wrap in array
                     supportedMethods = [String(gateway.supportedMethods)];
                 }
 
@@ -158,6 +213,66 @@ export async function GET(request: NextRequest) {
                     isActive = gateway.active;
                 }
 
+                // Ensure supportedMethods is an array
+                // Handle case where backend returns JSON string instead of array
+                // OR array of JSON strings (e.g., ['["MNO"]', '["CARD"]'])
+                let supportedMethods: string[] = [];
+                if (Array.isArray(gateway.supportedMethods)) {
+                    // Backend might return array of JSON strings like ['["MNO"]', '["CARD"]']
+                    // OR array of strings like ['MNO', 'CARD']
+                    const flattened: string[] = [];
+
+                    for (const item of gateway.supportedMethods) {
+                        if (typeof item === 'string') {
+                            // Check if it's a JSON string representation of an array
+                            const trimmed = item.trim();
+                            if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+                                (trimmed.startsWith('"[') && trimmed.endsWith(']"'))) {
+                                try {
+                                    // Parse the JSON string
+                                    let toParse = trimmed;
+                                    if (trimmed.startsWith('"[') && trimmed.endsWith(']"')) {
+                                        toParse = trimmed.slice(1, -1);
+                                    }
+                                    const parsed = JSON.parse(toParse);
+                                    if (Array.isArray(parsed)) {
+                                        // Flatten the parsed array
+                                        flattened.push(...parsed.filter((m): m is string => typeof m === 'string'));
+                                    } else {
+                                        // Not an array after parsing, treat as single method
+                                        flattened.push(item);
+                                    }
+                                } catch {
+                                    // JSON parsing failed, treat as single method
+                                    flattened.push(item);
+                                }
+                            } else {
+                                // Not a JSON string, treat as a regular method name
+                                flattened.push(item);
+                            }
+                        } else if (typeof item === 'object' && item !== null) {
+                            // Handle nested objects/arrays
+                            flattened.push(String(item));
+                        }
+                    }
+
+                    supportedMethods = flattened;
+                } else if (typeof gateway.supportedMethods === 'string') {
+                    // Try to parse as JSON string (e.g., "[\"MNO\"]" or '["MNO"]')
+                    try {
+                        const parsed = JSON.parse(gateway.supportedMethods);
+                        if (Array.isArray(parsed)) {
+                            supportedMethods = parsed.filter((m): m is string => typeof m === 'string');
+                        } else {
+                            // If parsed value is not an array, treat the whole string as a single method
+                            supportedMethods = [gateway.supportedMethods];
+                        }
+                    } catch {
+                        // If JSON parsing fails, treat the whole string as a single method
+                        supportedMethods = [gateway.supportedMethods];
+                    }
+                }
+
                 return {
                     id: gateway.id,
                     uid: gateway.uid ?? gateway.id,
@@ -165,9 +280,7 @@ export async function GET(request: NextRequest) {
                     code: gateway.code,
                     api_base_url_production: gateway.productionApiBaseUrl ?? null,
                     api_base_url_sandbox: gateway.sandboxApiBaseUrl ?? null,
-                    supported_methods: Array.isArray(gateway.supportedMethods)
-                        ? gateway.supportedMethods.filter((m): m is string => typeof m === 'string')
-                        : [],
+                    supported_methods: supportedMethods,
                     is_active: isActive,
                     created_at: gateway.createdAt ?? null,
                     updated_at: gateway.updatedAt ?? null,

@@ -249,10 +249,28 @@ const columns: ColumnDef<PaymentGateway>[] = [
         size: 250,
     },
     {
-        accessorKey: "supported_methods",
+        id: "supported_methods",
+        accessorFn: (row) => row.supported_methods,
         header: "Supported Methods",
         cell: ({ row }) => {
-            const methods = row.original.supported_methods as string[]
+            // The data should already be transformed to an array, but add safety check
+            const rawMethods = row.original.supported_methods;
+            let methods: string[] = [];
+
+            if (Array.isArray(rawMethods)) {
+                methods = rawMethods.filter((m): m is string => typeof m === 'string');
+            } else if (typeof rawMethods === 'string') {
+                // Fallback: try to parse as JSON string (shouldn't happen after transformation fix)
+                try {
+                    const parsed = JSON.parse(rawMethods);
+                    if (Array.isArray(parsed)) {
+                        methods = parsed.filter((m): m is string => typeof m === 'string');
+                    }
+                } catch {
+                    // Ignore parsing errors
+                }
+            }
+
             return (
                 <div className="flex flex-wrap gap-1">
                     {methods.length > 0 ? (

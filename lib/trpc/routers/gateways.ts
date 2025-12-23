@@ -14,7 +14,7 @@ function transformGateway(gateway: {
     code: string;
     productionApiBaseUrl?: string | null;
     sandboxApiBaseUrl?: string | null;
-    supportedMethods?: string[];
+    supportedMethods?: string[] | string | unknown;
     activeStatus?: string;
     isActive?: boolean;
     active?: boolean;
@@ -32,11 +32,99 @@ function transformGateway(gateway: {
     }
 
     // Ensure supportedMethods is an array
+    // Handle case where backend returns JSON string instead of array
+    // OR array of JSON strings (e.g., ['["MNO"]', '["CARD"]'])
     let supportedMethods: string[] = [];
-    if (Array.isArray(gateway.supportedMethods)) {
-        supportedMethods = gateway.supportedMethods;
-    } else if (gateway.supportedMethods) {
-        supportedMethods = [String(gateway.supportedMethods)];
+
+    // Check all possible field names the backend might use
+    const rawSupportedMethods = gateway.supportedMethods ??
+        (gateway as unknown as { supported_methods?: string[] }).supported_methods ??
+        (gateway as unknown as { supportedMethods?: string[] }).supportedMethods;
+
+    if (Array.isArray(rawSupportedMethods)) {
+        // Backend might return array of JSON strings like ['["MNO"]', '["CARD"]']
+        // OR array of strings like ['MNO', 'CARD']
+        const flattened: string[] = [];
+
+        for (const item of rawSupportedMethods) {
+            if (typeof item === 'string') {
+                // Check if it's a JSON string representation of an array
+                const trimmed = item.trim();
+                if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+                    (trimmed.startsWith('"[') && trimmed.endsWith(']"'))) {
+                    try {
+                        // Parse the JSON string
+                        let toParse = trimmed;
+                        if (trimmed.startsWith('"[') && trimmed.endsWith(']"')) {
+                            toParse = trimmed.slice(1, -1);
+                        }
+                        const parsed = JSON.parse(toParse);
+                        if (Array.isArray(parsed)) {
+                            // Flatten the parsed array
+                            flattened.push(...parsed.filter((m): m is string => typeof m === 'string'));
+                        } else {
+                            // Not an array after parsing, treat as single method
+                            flattened.push(item);
+                        }
+                    } catch {
+                        // JSON parsing failed, treat as single method
+                        flattened.push(item);
+                    }
+                } else {
+                    // Not a JSON string, treat as a regular method name
+                    flattened.push(item);
+                }
+            } else if (typeof item === 'object' && item !== null) {
+                // Handle nested objects/arrays
+                flattened.push(String(item));
+            }
+        }
+
+        supportedMethods = flattened;
+    } else if (typeof rawSupportedMethods === 'string') {
+        // Try to parse as JSON string (e.g., "[\"MNO\"]" or '["MNO"]')
+        // First, check if it's already a valid JSON array string
+        const trimmed = rawSupportedMethods.trim();
+        if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+            (trimmed.startsWith('"[') && trimmed.endsWith(']"'))) {
+            try {
+                // Remove outer quotes if double-stringified
+                let toParse = trimmed;
+                if (trimmed.startsWith('"[') && trimmed.endsWith(']"')) {
+                    toParse = trimmed.slice(1, -1);
+                }
+                const parsed = JSON.parse(toParse);
+                if (Array.isArray(parsed)) {
+                    supportedMethods = parsed.filter((m): m is string => typeof m === 'string');
+                } else {
+                    // If parsed value is not an array, treat the whole string as a single method
+                    supportedMethods = [rawSupportedMethods];
+                }
+            } catch {
+                // If JSON parsing fails, try to extract array-like content
+                // Handle cases like: ["MNO" "CARD"] (missing commas)
+                const match = trimmed.match(/\[(.*?)\]/);
+                if (match) {
+                    const content = match[1];
+                    // Split by quotes and filter out empty strings
+                    const items = content.match(/"([^"]+)"/g)?.map(s => s.slice(1, -1)) || [];
+                    if (items.length > 0) {
+                        supportedMethods = items;
+                    } else {
+                        supportedMethods = [rawSupportedMethods];
+                    }
+                } else {
+                    // If no array structure found, treat the whole string as a single method
+                    supportedMethods = [rawSupportedMethods];
+                }
+            }
+        } else {
+            // Not a JSON array string, treat as single method
+            supportedMethods = [rawSupportedMethods];
+        }
+    } else if (rawSupportedMethods) {
+        // Fallback: convert to string and wrap in array
+        supportedMethods = [String(rawSupportedMethods)];
     }
 
     return {
