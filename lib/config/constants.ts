@@ -55,6 +55,12 @@ export const QUERY_CACHE = {
     STALE_TIME_STATIC: 5 * 60 * 1000,
     /** Default garbage collection time (5 minutes) */
     GC_TIME_DEFAULT: 5 * 60 * 1000,
+    /** Refetch interval for list queries (30 seconds) */
+    REFETCH_INTERVAL_LIST: 30 * 1000,
+    /** Refetch interval for detail/single item queries (60 seconds) */
+    REFETCH_INTERVAL_DETAIL: 60 * 1000,
+    /** Refetch interval for static data (disabled - use false) */
+    REFETCH_INTERVAL_STATIC: false as const,
 } as const;
 
 // =============================================================================

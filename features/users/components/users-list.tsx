@@ -159,7 +159,6 @@ export default function UsersList() {
             <UsersTable
                 data={users}
                 paginationMeta={paginationMeta}
-                isLoading={isFetching}
             />
         </div>
     )

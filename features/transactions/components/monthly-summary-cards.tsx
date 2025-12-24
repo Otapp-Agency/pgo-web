@@ -78,16 +78,11 @@ function StatusBreakdownCard({
     title,
     breakdown,
     currency,
-    isLoading,
 }: {
     title: string;
     breakdown: Record<string, BreakdownItem> | undefined;
     currency: string;
-    isLoading: boolean;
 }) {
-    if (isLoading) {
-        return <SummaryCardSkeleton />;
-    }
 
     if (!breakdown) {
         return null;
@@ -124,10 +119,6 @@ function StatusBreakdownCard({
 }
 
 export function MonthlySummaryCards({ data, isLoading }: MonthlySummaryCardsProps) {
-    if (isLoading) {
-        return <SummaryCardsSkeleton cardCount={4} columns={4} />;
-    }
-
     if (!data) {
         return (
             <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -171,7 +162,6 @@ export function MonthlySummaryCards({ data, isLoading }: MonthlySummaryCardsProp
                     title="Status Breakdown"
                     breakdown={data.status_breakdown}
                     currency={data.currency}
-                    isLoading={isLoading}
                 />
             </div>
 

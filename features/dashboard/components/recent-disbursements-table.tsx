@@ -130,10 +130,9 @@ const columns: ColumnDef<RecentActivityItem>[] = [
 
 interface RecentDisbursementsTableProps {
     data: RecentActivityItem[];
-    isLoading?: boolean;
 }
 
-export function RecentDisbursementsTable({ data, isLoading }: RecentDisbursementsTableProps) {
+export function RecentDisbursementsTable({ data }: RecentDisbursementsTableProps) {
     const [sorting, setSorting] = React.useState<SortingState>([
         { id: 'createdAt', desc: true }, // Sort by most recent first
     ]);
@@ -148,33 +147,6 @@ export function RecentDisbursementsTable({ data, isLoading }: RecentDisbursement
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
-
-    if (isLoading) {
-        return (
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Disbursement ID</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Created At</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <TableRow key={i}>
-                                <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
-                                <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                                <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                                <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-        );
-    }
 
     if (!data || data.length === 0) {
         return (

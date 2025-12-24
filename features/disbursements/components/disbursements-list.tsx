@@ -12,10 +12,11 @@ export default function DisbursementsList() {
     const trpc = useTRPC();
 
     // Build query params from store state
+    // Ensure per_page is at least 1 (protect against corrupted persisted state)
     const queryParams = {
         // Pagination: convert 0-based pageIndex to 1-based page for API
-        page: pagination.pageIndex + 1,
-        per_page: pagination.pageSize,
+        page: Math.max(1, pagination.pageIndex + 1),
+        per_page: Math.max(1, pagination.pageSize || 10),
         // Server-side filters
         ...(filters.status && { status: filters.status }),
         ...(filters.startDate && { start_date: filters.startDate }),

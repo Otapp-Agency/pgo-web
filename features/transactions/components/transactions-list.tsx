@@ -12,10 +12,11 @@ export default function TransactionsList() {
     const trpc = useTRPC();
 
     // Build query params from store state
+    // Ensure per_page is at least 1 (protect against corrupted persisted state)
     const queryParams = {
         // Pagination: convert 0-based pageIndex to 1-based page for API
-        page: (pagination.pageIndex + 1).toString(),
-        per_page: pagination.pageSize.toString(),
+        page: Math.max(1, pagination.pageIndex + 1).toString(),
+        per_page: Math.max(1, pagination.pageSize || 10).toString(),
         // Server-side filters
         ...(filters.status && { status: filters.status }),
         ...(filters.startDate && { start_date: filters.startDate }),
@@ -36,7 +37,6 @@ export default function TransactionsList() {
 
     // Type assertion needed because tRPC types may not be fully inferred in this context
     const data = queryResult.data as PaginatedTransactionResponse;
-    const { isFetching } = queryResult;
 
     // Extract transactions and pagination meta from response
     const transactions = data.data ?? [];
@@ -54,7 +54,6 @@ export default function TransactionsList() {
             <TransactionTable
                 data={transactions}
                 paginationMeta={paginationMeta}
-                isLoading={isFetching}
             />
         </div>
     );

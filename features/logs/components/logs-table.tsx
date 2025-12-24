@@ -29,7 +29,6 @@ import {
     IconChevronsRight,
     IconDotsVertical,
     IconLayoutColumns,
-    IconLoader,
 } from "@tabler/icons-react"
 import {
     ColumnDef,
@@ -90,8 +89,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { TableSkeletonRows } from "@/components/ui/table-skeleton"
-import { LOGS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
 
 // Helper function to format date
 function formatDate(dateString: string | null): string {
@@ -333,11 +330,9 @@ interface PaginationMeta {
 export function LogsTable({
     data,
     paginationMeta,
-    isLoading = false,
 }: {
     data: AuditLog[];
     paginationMeta: PaginationMeta;
-    isLoading?: boolean;
 }) {
     const {
         pagination: paginationState,
@@ -527,9 +522,7 @@ export function LogsTable({
                                 ))}
                             </TableHeader>
                             <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                                {isLoading ? (
-                                    <TableSkeletonRows rows={10} columns={LOGS_TABLE_COLUMNS} />
-                                ) : table.getRowModel().rows?.length ? (
+                                {table.getRowModel().rows?.length ? (
                                     table.getRowModel().rows.map((row) => (
                                         <TableRow
                                             key={row.id}
@@ -594,14 +587,13 @@ export function LogsTable({
                         <div className="flex w-fit items-center justify-center text-sm font-medium">
                             Page {paginationMeta.pageNumber + 1} of{" "}
                             {paginationMeta.totalPages || 1}
-                            {isLoading && <IconLoader className="ml-2 size-4 animate-spin" />}
                         </div>
                         <div className="ml-auto flex items-center gap-2 lg:ml-0">
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: 0 })}
-                                disabled={paginationMeta.first || isLoading}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to first page</span>
                                 <IconChevronsLeft />
@@ -611,7 +603,7 @@ export function LogsTable({
                                 className="size-8"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex - 1 })}
-                                disabled={paginationMeta.first || isLoading}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to previous page</span>
                                 <IconChevronLeft />
@@ -621,7 +613,7 @@ export function LogsTable({
                                 className="size-8"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex + 1 })}
-                                disabled={paginationMeta.last || isLoading}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to next page</span>
                                 <IconChevronRight />
@@ -631,7 +623,7 @@ export function LogsTable({
                                 className="hidden size-8 lg:flex"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: (paginationMeta.totalPages || 1) - 1 })}
-                                disabled={paginationMeta.last || isLoading}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to last page</span>
                                 <IconChevronsRight />

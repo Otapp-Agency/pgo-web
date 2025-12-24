@@ -159,7 +159,6 @@ export default function LogsList() {
             <LogsTable
                 data={auditLogs as unknown as AuditLog[]}
                 paginationMeta={paginationMeta}
-                isLoading={isFetching}
             />
         </div>
     )

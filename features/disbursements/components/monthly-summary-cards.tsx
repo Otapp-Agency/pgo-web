@@ -85,9 +85,9 @@ function StatusBreakdownCard({
     currency: string;
     isLoading: boolean;
 }) {
-    if (isLoading) {
-        return <SummaryCardSkeleton />;
-    }
+    // if (isLoading) {
+    //     return <SummaryCardSkeleton />;
+    // }
 
     if (!breakdown) {
         return null;
@@ -124,9 +124,9 @@ function StatusBreakdownCard({
 }
 
 export function MonthlySummaryCards({ data, isLoading }: MonthlySummaryCardsProps) {
-    if (isLoading) {
-        return <SummaryCardsSkeleton cardCount={4} columns={4} />;
-    }
+    // if (isLoading) {
+    //     return <SummaryCardsSkeleton cardCount={4} columns={4} />;
+    // }
 
     if (!data) {
         return (

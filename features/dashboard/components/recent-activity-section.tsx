@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/lib/trpc/client';
 import { RecentTransactionsTable } from './recent-transactions-table';
 import { RecentDisbursementsTable } from './recent-disbursements-table';
@@ -14,26 +14,14 @@ interface RecentActivitySectionProps {
 
 export function RecentActivitySection({ params }: RecentActivitySectionProps) {
     const trpc = useTRPC();
-    const {
-        data: statsData,
-        isLoading,
-        isFetching,
-        error,
-    } = useQuery(trpc.dashboard.stats.queryOptions(params));
+    const queryResult = useSuspenseQuery(trpc.dashboard.stats.queryOptions(params));
+    
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const statsData = queryResult.data;
 
     const recentActivity = statsData?.recentActivity;
     const transactions = recentActivity?.transactions || [];
     const disbursements = recentActivity?.disbursements || [];
-    const isLoadingData = isLoading || isFetching;
-
-    // Show error state
-    if (error) {
-        return (
-            <div className="px-4 lg:px-6 py-4 text-muted-foreground">
-                Failed to load recent activity: {error.message}
-            </div>
-        );
-    }
 
     return (
         <div className="px-4 lg:px-6">
@@ -69,14 +57,12 @@ export function RecentActivitySection({ params }: RecentActivitySectionProps) {
                 <TabsContent value="transactions" className="mt-4">
                     <RecentTransactionsTable
                         data={transactions}
-                        isLoading={isLoadingData}
                     />
                 </TabsContent>
 
                 <TabsContent value="disbursements" className="mt-4">
                     <RecentDisbursementsTable
                         data={disbursements}
-                        isLoading={isLoadingData}
                     />
                 </TabsContent>
             </Tabs>

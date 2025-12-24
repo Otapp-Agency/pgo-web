@@ -22,7 +22,6 @@ import {
     getCoreRowModel,
     Header,
     useReactTable,
-    VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
 
@@ -53,7 +52,6 @@ import {
     DrawerFooter,
     DrawerHeader,
     DrawerTitle,
-    DrawerTrigger,
 } from "@/components/ui/drawer"
 import {
     DropdownMenu,
@@ -86,8 +84,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { TableSkeletonRows } from "@/components/ui/table-skeleton"
-import { TRANSACTIONS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
 import Link from "next/link"
 
 // Context for sharing drawer state
@@ -299,7 +295,7 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                     queryClient.invalidateQueries({ queryKey: trpc.transactions.getByUid.queryKey({ id: transactionId }) })
                     toast.success(data.message || 'Transaction retry initiated successfully')
                 },
-                onError: (error: Error) => {
+                onError: (error) => {
                     toast.error(error.message || 'Failed to retry transaction')
                 },
             }
@@ -771,11 +767,9 @@ interface PaginationMeta {
 export function TransactionTable({
     data,
     paginationMeta,
-    isLoading = false,
 }: {
     data: Transaction[];
     paginationMeta: PaginationMeta;
-    isLoading?: boolean;
 }) {
     // Get state from Zustand store
     const {
@@ -817,6 +811,10 @@ export function TransactionTable({
 
     // Export handler using store filters
     const trpc = useTRPC()
+    const exportMutation = useMutation(
+        trpc.transactions.export.mutationOptions()
+    )
+
     const handleExport = React.useCallback(async (format: 'csv' | 'excel') => {
         try {
             // Build search criteria from store filters
@@ -840,7 +838,7 @@ export function TransactionTable({
             }
 
             // Call tRPC export mutation
-            const result = await trpc.transactions.export.mutate({
+            const result = await exportMutation.mutateAsync({
                 format,
                 searchCriteria,
             })
@@ -866,7 +864,7 @@ export function TransactionTable({
             console.error('Export error:', error)
             toast.error(error instanceof Error ? error.message : 'Failed to export transactions')
         }
-    }, [filters, trpc])
+    }, [filters, exportMutation])
 
     return (
         <TransactionDrawerContext.Provider value={{ openTransactionUid, setOpenTransactionUid }}>
@@ -953,9 +951,7 @@ export function TransactionTable({
                                     ))}
                                 </TableHeader>
                                 <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                                    {isLoading ? (
-                                        <TableSkeletonRows rows={10} columns={TRANSACTIONS_TABLE_COLUMNS} />
-                                    ) : table.getRowModel().rows?.length ? (
+                                    {table.getRowModel().rows?.length ? (
                                         table.getRowModel().rows.map((row) => (
                                             <TableRow
                                                 key={row.id}

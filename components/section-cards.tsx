@@ -45,7 +45,7 @@ function calculateSuccessRate(successful: number, total: number): number {
   return (successful / total) * 100;
 }
 
-export function SectionCards({ stats, isLoading }: SectionCardsProps) {
+export function SectionCards({ stats }: SectionCardsProps) {
   const currency = stats?.currency || 'TZS';
 
   // Calculate success rate
@@ -63,40 +63,20 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Transactions</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {isLoading ? (
-              <Skeleton className="h-8 w-[140px]" />
-            ) : (
-              formatCurrency(stats?.total_transactions_value || 0, currency)
-            )}
+            {formatCurrency(stats?.total_transactions_value || 0, currency)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {isLoading ? (
-                <Skeleton className="h-4 w-[60px]" />
-              ) : (
-                <>
-                  {formatNumber(stats?.total_transactions_count || 0)} txns
-                </>
-              )}
+              {formatNumber(stats?.total_transactions_count || 0)} txns
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[120px]" />
-            ) : (
-              <>
-                All transactions value
-              </>
-            )}
+            All transactions value
           </div>
           <div className="text-muted-foreground">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[100px]" />
-            ) : (
-              `Currency: ${currency}`
-            )}
+            Currency: {currency}
           </div>
         </CardFooter>
       </Card>
@@ -106,41 +86,21 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Successful Transactions</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {isLoading ? (
-              <Skeleton className="h-8 w-[140px]" />
-            ) : (
-              formatCurrency(stats?.successful_transactions_value || 0, currency)
-            )}
+            {formatCurrency(stats?.successful_transactions_value || 0, currency)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {isLoading ? (
-                <Skeleton className="h-4 w-[40px]" />
-              ) : (
-                <>
-                  <IconTrendingUp />
-                  {formatNumber(stats?.successful_transactions_count || 0)}
-                </>
-              )}
+              <IconTrendingUp />
+              {formatNumber(stats?.successful_transactions_count || 0)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[120px]" />
-            ) : (
-              <>
-                Completed successfully <IconTrendingUp className="size-4" />
-              </>
-            )}
+            Completed successfully <IconTrendingUp className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[100px]" />
-            ) : (
-              `${transactionSuccessRate.toFixed(1)}% success rate`
-            )}
+            {transactionSuccessRate.toFixed(1)}% success rate
           </div>
         </CardFooter>
       </Card>
@@ -150,40 +110,20 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Disbursements</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {isLoading ? (
-              <Skeleton className="h-8 w-[140px]" />
-            ) : (
-              formatCurrency(stats?.total_disbursements_value || 0, currency)
-            )}
+            {formatCurrency(stats?.total_disbursements_value || 0, currency)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {isLoading ? (
-                <Skeleton className="h-4 w-[60px]" />
-              ) : (
-                <>
-                  {formatNumber(stats?.total_disbursements_count || 0)} disb.
-                </>
-              )}
+              {formatNumber(stats?.total_disbursements_count || 0)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[120px]" />
-            ) : (
-              <>
-                All disbursements value
-              </>
-            )}
+            All disbursements value
           </div>
           <div className="text-muted-foreground">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[100px]" />
-            ) : (
-              `${formatNumber(stats?.successful_disbursements_count || 0)} successful`
-            )}
+            {formatCurrency(stats?.total_disbursements_value || 0, currency)}
           </div>
         </CardFooter>
       </Card>
@@ -193,17 +133,11 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Transaction Success Rate</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {isLoading ? (
-              <Skeleton className="h-8 w-[80px]" />
-            ) : (
-              `${transactionSuccessRate.toFixed(1)}%`
-            )}
+            {transactionSuccessRate.toFixed(1)}%
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {isLoading ? (
-                <Skeleton className="h-4 w-[60px]" />
-              ) : isPositiveTrend ? (
+             {isPositiveTrend ? (
                 <>
                   <IconTrendingUp />
                   Good
@@ -219,9 +153,7 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[120px]" />
-            ) : isPositiveTrend ? (
+            {isPositiveTrend ? (
               <>
                 Healthy success rate <IconTrendingUp className="size-4" />
               </>
@@ -232,11 +164,7 @@ export function SectionCards({ stats, isLoading }: SectionCardsProps) {
             )}
           </div>
           <div className="text-muted-foreground">
-            {isLoading ? (
-              <Skeleton className="h-4 w-[140px]" />
-            ) : (
-              `${formatNumber(stats?.failed_transactions_count || 0)} failed transactions`
-            )}
+            {formatNumber(stats?.failed_transactions_count || 0)} failed txns
           </div>
         </CardFooter>
       </Card>

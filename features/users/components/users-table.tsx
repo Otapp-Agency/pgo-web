@@ -13,7 +13,6 @@ import {
     IconCircleCheckFilled,
     IconDotsVertical,
     IconLayoutColumns,
-    IconLoader,
     IconLock,
     IconLockOpen,
 } from "@tabler/icons-react"
@@ -81,8 +80,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { TableSkeletonRows } from "@/components/ui/table-skeleton"
-import { USERS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
 import { ResetPasswordDialog } from "./reset-password-dialog"
 
 // Helper function to format date
@@ -383,11 +380,9 @@ interface PaginationMeta {
 export function UsersTable({
     data,
     paginationMeta,
-    isLoading = false,
 }: {
     data: User[];
     paginationMeta: PaginationMeta;
-    isLoading?: boolean;
 }) {
     const {
         pagination: paginationState,
@@ -652,9 +647,7 @@ export function UsersTable({
                                 ))}
                             </TableHeader>
                             <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                                {isLoading ? (
-                                    <TableSkeletonRows rows={10} columns={USERS_TABLE_COLUMNS} />
-                                ) : table.getRowModel().rows?.length ? (
+                                {table.getRowModel().rows?.length ? (
                                     table.getRowModel().rows.map((row) => (
                                         <TableRow
                                             key={row.id}
@@ -719,14 +712,13 @@ export function UsersTable({
                         <div className="flex w-fit items-center justify-center text-sm font-medium">
                             Page {paginationMeta.pageNumber} of{" "}
                             {paginationMeta.totalPages || 1}
-                            {isLoading && <IconLoader className="ml-2 size-4 animate-spin" />}
                         </div>
                         <div className="ml-auto flex items-center gap-2 lg:ml-0">
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: 0 })}
-                                disabled={paginationMeta.first || isLoading}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to first page</span>
                                 <IconChevronsLeft />
@@ -736,7 +728,7 @@ export function UsersTable({
                                 className="size-8"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex - 1 })}
-                                disabled={paginationMeta.first || isLoading}
+                                disabled={paginationMeta.first}
                             >
                                 <span className="sr-only">Go to previous page</span>
                                 <IconChevronLeft />
@@ -746,7 +738,7 @@ export function UsersTable({
                                 className="size-8"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: paginationState.pageIndex + 1 })}
-                                disabled={paginationMeta.last || isLoading}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to next page</span>
                                 <IconChevronRight />
@@ -756,7 +748,7 @@ export function UsersTable({
                                 className="hidden size-8 lg:flex"
                                 size="icon"
                                 onClick={() => setPagination({ ...paginationState, pageIndex: paginationMeta.totalPages ? paginationMeta.totalPages - 1 : 0 })}
-                                disabled={paginationMeta.last || isLoading}
+                                disabled={paginationMeta.last}
                             >
                                 <span className="sr-only">Go to last page</span>
                                 <IconChevronsRight />

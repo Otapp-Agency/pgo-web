@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { MerchantsTable } from './merchants-table';
 import { NewMerchantDrawer } from './new-merchant-drawer';
 import type { MerchantListParams } from '@/features/merchants/types';
@@ -87,13 +87,13 @@ export default function MerchantsList() {
         return params;
     }, [queryParams, page, per_page]);
 
-    const { data, isLoading, isFetching, error } = useQuery(
+    // Use tRPC query with Suspense
+    const queryResult = useSuspenseQuery(
         trpc.merchants.list.queryOptions(trpcQueryParams)
     );
-
-    if (error) {
-        console.error('Merchants query error:', error);
-    }
+    
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as PaginatedMerchantResponse | undefined;
 
     // Dynamically prefetch the next 2 pages when page changes
     useEffect(() => {
@@ -186,7 +186,6 @@ export default function MerchantsList() {
             <MerchantsTable
                 data={merchants}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
             />
         </div>
     )

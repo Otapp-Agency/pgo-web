@@ -147,7 +147,6 @@ export default function RolesList() {
             <RolesTable
                 data={roles}
                 paginationMeta={paginationMeta}
-                isLoading={isFetching}
             />
         </div>
     )

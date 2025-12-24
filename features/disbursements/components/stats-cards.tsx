@@ -19,7 +19,6 @@ import {
     CardTitle,
     CardContent,
 } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { SummaryCardsSkeleton } from '@/components/ui/page-skeleton';
 import { Badge } from '@/components/ui/badge';
 import type { DisbursementStatsItem } from '@/lib/definitions';
@@ -82,9 +81,9 @@ export function StatsCards({ volumeData, statusData, gatewayData, isLoading }: S
     // Use volume data as primary source
     const primaryData = volumeData || statusData || gatewayData;
 
-    if (isLoading) {
-        return <SummaryCardsSkeleton cardCount={4} columns={4} />;
-    }
+    // if (isLoading) {
+    //     return <SummaryCardsSkeleton cardCount={4} columns={4} />;
+    // }
 
     if (!primaryData) {
         return (

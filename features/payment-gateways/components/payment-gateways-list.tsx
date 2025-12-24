@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { PaymentGatewaysTable } from './payment-gateways-table';
 import { NewPaymentGatewayDrawer } from './new-payment-gateway-drawer';
 import { usePaymentGatewaysTableStore } from '@/lib/stores/payment-gateways-table-store';
@@ -42,14 +42,14 @@ export default function PaymentGatewaysList() {
         ...filterParams,
     }), [filterParams]);
 
-    // Use tRPC query
-    const { data, isLoading, isFetching, error } = useQuery(
+    // Use tRPC query with Suspense
+    const queryResult = useSuspenseQuery(
         trpc.gateways.list.queryOptions(queryParams)
     );
 
-    if (error) {
-        console.error('Payment gateways query error:', error);
-    }
+    // Type assertion needed because tRPC types may not be fully inferred in this context
+    const data = queryResult.data as PaginatedPaymentGatewayResponse | undefined;
+
 
     // Extract payment gateways and pagination metadata
     const paymentGateways = (data as PaginatedPaymentGatewayResponse | undefined)?.data ?? [];
@@ -78,7 +78,6 @@ export default function PaymentGatewaysList() {
             <PaymentGatewaysTable
                 data={paymentGateways}
                 paginationMeta={paginationMeta}
-                isLoading={isLoading || isFetching}
             />
         </div>
     );

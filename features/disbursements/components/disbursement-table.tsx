@@ -83,9 +83,8 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { TableSkeletonRows } from "@/components/ui/table-skeleton"
+// import { TableSkeletonRows } from "@/components/ui/table-skeleton"
 import { DISBURSEMENTS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
-import { ExportFormat } from "@/features/transactions/queries/export"
 import { useTRPC } from "@/lib/trpc/client"
 
 // Helper function to format amount with currency
@@ -870,7 +869,7 @@ export function DisbursementTable({
     // Export mutation
     const exportMutation = useMutation(trpc.disbursements.export.mutationOptions())
 
-    const handleExport = async (format: ExportFormat) => {
+    const handleExport = async (format: "csv" | "excel") => {
         exportMutation.mutate({ format }, {
             onSuccess: () => {
                 toast.success(`Exporting disbursements as ${format.toUpperCase()}...`)
@@ -965,9 +964,7 @@ export function DisbursementTable({
                                 ))}
                             </TableHeader>
                             <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                                {isLoading ? (
-                                    <TableSkeletonRows rows={10} columns={DISBURSEMENTS_TABLE_COLUMNS} />
-                                ) : table.getRowModel().rows?.length ? (
+                                {table.getRowModel().rows?.length ? (
                                     table.getRowModel().rows.map((row) => (
                                         <TableRow
                                             key={row.id}
