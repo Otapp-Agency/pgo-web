@@ -41,6 +41,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-color-destructive-foreground: var(----color-destructive-foreground);
+  --color-color-color-destructive-foreground: var(----color-color-destructive-foreground);
 }
 
 :root {
@@ -76,6 +79,7 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.708 0 0);
+  --destructive-foreground: oklch(1 0 0);
 }
 
 .dark {
@@ -110,6 +114,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.439 0 0);
+  --destructive-foreground: oklch(1 0 0);
 }
 
 @layer base {

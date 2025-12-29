@@ -1,4 +1,3 @@
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { verifySession } from "@/lib/auth/services/auth.service"
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
@@ -6,6 +5,7 @@ import { getQueryClient, trpc } from "@/lib/trpc/server"
 import { HydrateClient } from "@/lib/server-query-client"
 import { DashboardStatsSection } from "@/features/dashboard/components/dashboard-stats-section"
 import { RecentActivitySection } from "@/features/dashboard/components/recent-activity-section"
+import { TransactionChartSection } from "@/features/dashboard/components/transaction-chart-section"
 import { SummaryCardsSkeleton } from "@/components/ui/page-skeleton"
 
 export default async function Page() {
@@ -30,9 +30,12 @@ export default async function Page() {
               </Suspense>
             </ErrorBoundary>
 
-            {/* <div className="px-4 lg:px-6">
-              <ChartAreaInteractive />
-            </div> */}
+            {/* Transaction Charts */}
+            <ErrorBoundary fallback={<div className="px-4 lg:px-6 py-4 text-muted-foreground">Failed to load transaction charts</div>}>
+              <Suspense fallback={<div className="px-4 lg:px-6"><div className="rounded-md border p-8"><div className="h-4 w-48 bg-muted animate-pulse rounded mb-4" /><div className="h-96 bg-muted animate-pulse rounded" /></div></div>}>
+                <TransactionChartSection />
+              </Suspense>
+            </ErrorBoundary>
 
             {/* Recent Activity Tables */}
             <ErrorBoundary fallback={<div className="px-4 lg:px-6 py-4 text-muted-foreground">Failed to load recent activity</div>}>

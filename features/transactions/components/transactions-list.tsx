@@ -5,6 +5,7 @@ import { TransactionTable } from './transaction-table';
 import { useTransactionsTableStore } from '@/lib/stores/transactions-table-store';
 import { useTRPC } from '@/lib/trpc/client';
 import type { PaginatedTransactionResponse } from '@/lib/definitions';
+import { QUERY_CACHE } from '@/lib/config/constants';
 
 export default function TransactionsList() {
     // Get filter state from store
@@ -32,8 +33,13 @@ export default function TransactionsList() {
 
     // Use useSuspenseQuery for Suspense support
     const queryResult = useSuspenseQuery(
-        trpc.transactions.list.queryOptions(queryParams)
-    );
+        trpc.transactions.list.queryOptions(queryParams,
+        // {
+        //     staleTime: QUERY_CACHE.STALE_TIME_LIST,
+        //     gcTime: QUERY_CACHE.GC_TIME_DEFAULT,
+        //     refetchInterval: false,
+        // }
+    ));
 
     // Type assertion needed because tRPC types may not be fully inferred in this context
     const data = queryResult.data as PaginatedTransactionResponse;
