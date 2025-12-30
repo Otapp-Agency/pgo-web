@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSuspenseQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -70,8 +70,8 @@ export function NewUserForm({ onSuccess }: NewUserFormProps) {
         },
     });
 
-    const selectedRole = form.watch('role');
-    const selectedUserType = form.watch('user_type');
+    const selectedRole = useWatch({ control: form.control, name: 'role' });
+    const selectedUserType = useWatch({ control: form.control, name: 'user_type' });
 
     // Fetch merchant integrator users when role is otapp_client
     const {

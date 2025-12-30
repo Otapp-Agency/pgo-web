@@ -28,7 +28,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { logout } from "@/app/(auth)/actions/auth.actions"
+import { useTRPC } from "@/lib/trpc/client"
+import { useRouter } from "next/navigation"
+import { useMutation } from "@tanstack/react-query"
 
 export function NavUser({
   user,
@@ -40,9 +42,24 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+  const trpc = useTRPC()
+
+  const logoutMutation = useMutation(trpc.auth.logout.mutationOptions({
+    onSuccess: (data) => {
+      if (data.success) {
+        router.push(data.redirectTo || '/login')
+      }
+    },
+    onError: (error: unknown) => {
+      console.error('Logout error:', error)
+      // Still redirect on error to clear any stale state
+      router.push('/login')
+    },
+  }))
 
   const handleLogout = async () => {
-    await logout()
+    logoutMutation.mutate()
   }
 
   const getInitials = (name: string) => {

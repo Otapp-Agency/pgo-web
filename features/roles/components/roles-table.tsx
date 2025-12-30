@@ -21,7 +21,6 @@ import {
     useReactTable,
 } from "@tanstack/react-table"
 
-import { useIsMobile } from "@/hooks/use-mobile"
 import { Role } from "../types"
 import { useRolesTableStore } from "@/lib/stores/roles-table-store"
 
@@ -180,7 +179,6 @@ const columns: ColumnDef<Role>[] = [
     {
         id: "actions",
         cell: ({ row }) => {
-            const role = row.original;
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

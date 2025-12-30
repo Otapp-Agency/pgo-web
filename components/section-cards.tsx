@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import type { DashboardStats } from "@/features/dashboard/types"
 
 interface SectionCardsProps {

@@ -35,6 +35,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BankAccountsDrawer } from "./bank-accounts-drawer"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 // Re-export schema for build compatibility
 export const schema = MerchantSchema
@@ -1208,9 +1209,16 @@ function TableCellViewer({ item, displayText }: { item: Merchant; displayText?: 
                         </div>
                     </div>
                 </div>
-                <DrawerFooter>
+                <DrawerFooter className="flex flex-row gap-2">
+                    {item.uid && (
+                        <Button variant="default" asChild className="flex-1">
+                            <Link href={`/merchants/${item.uid}`}>
+                                View Complete Details
+                            </Link>
+                        </Button>
+                    )}
                     <DrawerClose asChild>
-                        <Button variant="outline">Close</Button>
+                        <Button variant="outline" className={item.uid ? "flex-1" : "w-full"}>Close</Button>
                     </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>

@@ -576,9 +576,16 @@ function ActionsCell({ transaction }: { transaction: Transaction }) {
                             </div>
                         </div>
                     </div>
-                    <DrawerFooter>
+                    <DrawerFooter className="flex flex-row gap-2">
+                        {transactionId && (
+                            <Button variant="default" asChild className="flex-1">
+                                <Link href={`/transactions/${transactionId}`}>
+                                    View Complete Details
+                                </Link>
+                            </Button>
+                        )}
                         <DrawerClose asChild>
-                            <Button variant="outline">Close</Button>
+                            <Button variant="outline" className={transactionId ? "flex-1" : "w-full"}>Close</Button>
                         </DrawerClose>
                     </DrawerFooter>
                 </DrawerContent>
@@ -978,12 +985,12 @@ export function TransactionTable({
                             </Table>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between px-4 flex-shrink-0">
+                    <div className="flex items-center justify-between px-4 shrink-0">
                         <div className="text-muted-foreground hidden flex-1 text-sm lg:flex min-w-0">
                             {Object.keys(rowSelection).length} of{" "}
                             {paginationMeta.totalElements} row(s) selected.
                         </div>
-                        <div className="flex w-full items-center gap-8 lg:w-fit flex-shrink-0">
+                        <div className="flex w-full items-center gap-8 lg:w-fit shrink-0">
                             <div className="hidden items-center gap-2 lg:flex">
                                 <Label htmlFor="rows-per-page" className="text-sm font-medium">
                                     Rows per page

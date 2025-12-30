@@ -7,8 +7,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SummaryCardsSkeleton } from '@/components/ui/page-skeleton';
 import type { MonthlyTransactionSummary, BreakdownItem } from '@/lib/definitions';
 
 interface MonthlySummaryCardsProps {
@@ -63,17 +61,6 @@ function getStatusStyle(status: string): { icon: React.ReactNode; color: string 
     }
 }
 
-function SummaryCardSkeleton() {
-    return (
-        <Card className="@container/card">
-            <CardHeader>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32 mt-2" />
-            </CardHeader>
-        </Card>
-    );
-}
-
 function StatusBreakdownCard({
     title,
     breakdown,
@@ -118,7 +105,7 @@ function StatusBreakdownCard({
     );
 }
 
-export function MonthlySummaryCards({ data, isLoading }: MonthlySummaryCardsProps) {
+export function MonthlySummaryCards({ data }: MonthlySummaryCardsProps) {
     if (!data) {
         return (
             <div className="flex items-center justify-center py-8 text-muted-foreground">

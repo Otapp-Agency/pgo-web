@@ -5,7 +5,6 @@ import { TransactionTable } from './transaction-table';
 import { useTransactionsTableStore } from '@/lib/stores/transactions-table-store';
 import { useTRPC } from '@/lib/trpc/client';
 import type { PaginatedTransactionResponse } from '@/lib/definitions';
-import { QUERY_CACHE } from '@/lib/config/constants';
 
 export default function TransactionsList() {
     // Get filter state from store

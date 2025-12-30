@@ -41,7 +41,6 @@ export function RequirePermission({
   roles,
   permission,
   permissions,
-  requireAll = false,
   showError = false,
   errorMessage = 'You do not have permission to access this content.',
   fallback,

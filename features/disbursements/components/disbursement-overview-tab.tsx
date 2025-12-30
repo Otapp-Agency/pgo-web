@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { IconCircleCheckFilled, IconCircleX, IconLoader, IconRefresh, IconCheck, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { CompleteDisbursementDialog, CancelDisbursementDialog } from './disbursement-action-dialogs';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/lib/trpc/client';
 
 interface DisbursementOverviewTabProps {
@@ -34,7 +33,6 @@ function formatAmount(amount: string): string {
 }
 
 export default function DisbursementOverviewTab({ disbursement, numericId }: DisbursementOverviewTabProps) {
-    const queryClient = useQueryClient();
     // Use numeric ID for backend API calls that expect Long type
     const trpc = useTRPC();
     const { data: canUpdate } = useQuery(trpc.disbursements.canUpdate.queryOptions({ id: numericId }));
@@ -94,19 +92,6 @@ export default function DisbursementOverviewTab({ disbursement, numericId }: Dis
 
     // Retry mutation
     const retryMutation = useMutation(trpc.disbursements.retry.mutationOptions())
-
-    const handleRetry = () => {
-        retryMutation.mutate({ id: numericId }, {
-            onSuccess: () => {
-                toast.success('Disbursement retry initiated successfully')
-                queryClient.invalidateQueries({ queryKey: trpc.disbursements.list.queryKey() });
-                queryClient.invalidateQueries({ queryKey: trpc.disbursements.getById.queryKey({ id: numericId }) });
-            },
-            onError: (error) => {
-                toast.error(error.message || 'Failed to retry disbursement')
-            },
-        })
-    }
 
 
     const formattedAmount = disbursement.amount && disbursement.currency

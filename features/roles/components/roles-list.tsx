@@ -9,7 +9,7 @@ import type { PaginatedRoleResponse } from '@/features/roles/types';
 
 export default function RolesList() {
     const queryClient = useQueryClient();
-    const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useRolesTableStore();
+    const { pagination, sorting, columnFilters, setPagination } = useRolesTableStore();
     const trpc = useTRPC();
 
     // Reset to first page when sorting or filtering changes
@@ -59,7 +59,6 @@ export default function RolesList() {
 
     // Type assertion needed because tRPC types may not be fully inferred in this context
     const data = queryResult.data as PaginatedRoleResponse;
-    const { isFetching } = queryResult;
 
     // Dynamically prefetch the next pages when page changes
     useEffect(() => {

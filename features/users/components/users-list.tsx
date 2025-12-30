@@ -10,7 +10,7 @@ import type { PaginatedUserResponse } from '@/lib/definitions';
 
 export default function UsersList() {
     const queryClient = useQueryClient();
-    const { pagination, sorting, columnFilters, setPagination, setSorting, setColumnFilters } = useUsersTableStore();
+    const { pagination, sorting, columnFilters, setPagination } = useUsersTableStore();
     const trpc = useTRPC();
 
     // Reset to first page when sorting or filtering changes
@@ -70,7 +70,6 @@ export default function UsersList() {
 
     // Type assertion needed because tRPC types may not be fully inferred in this context
     const data = queryResult.data as PaginatedUserResponse;
-    const { isFetching } = queryResult;
 
     // Dynamically prefetch the next pages when page changes
     useEffect(() => {

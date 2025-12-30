@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { IconLoader } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import {
     Timeline,

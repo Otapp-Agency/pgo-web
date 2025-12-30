@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
-import type { PaymentGatewayCreateRequest } from '@/lib/types/payment-gateway';
 import type { PaginatedPaymentGatewayResponse } from '@/lib/definitions';
 
 /**

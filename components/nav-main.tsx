@@ -8,8 +8,6 @@ import {
   IconUsers,
   IconCreditCard,
   IconChevronRight,
-  IconUserScan,
-  IconKey,
   IconFingerprint,
 } from "@tabler/icons-react"
 

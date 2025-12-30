@@ -8,7 +8,7 @@ import type { AvailablePaymentGatewaysResponse } from '@/lib/types/payment-gatew
  * FR-PGO-004: Get Available Payment Gateways (for Merchants/API Integrators)
  * Returns only active gateways with minimal data
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // Get session for authentication
         const session = await getSession();

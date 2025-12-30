@@ -95,7 +95,6 @@ export async function GET(request: NextRequest) {
         if (data.data && Array.isArray(data.data)) {
             // Backend uses 0-based pagination, frontend also uses 0-based
             const backendPageNumber = data.pageNumber ?? 0;
-            const page = parseInt(searchParams.get('page') || '0', 10);
             const perPage = parseInt(searchParams.get('per_page') || '15', 10);
 
             const paginatedResponse = {

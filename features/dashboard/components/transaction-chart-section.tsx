@@ -162,9 +162,12 @@ export function TransactionChartSection() {
     const trpc = useTRPC();
 
     // Calculate default date range (last 30 days)
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    const endDate = React.useMemo(() => new Date(), []);
+    const startDate = React.useMemo(() => {
+        const date = new Date();
+        date.setDate(date.getDate() - 30);
+        return date;
+    }, []);
 
     const startDateStr = formatDateToISO(startDate);
     const endDateStr = formatDateToISO(endDate);
@@ -408,30 +411,7 @@ export function TransactionChartSection() {
                                     stroke={chartConfig.value.color}
                                     strokeWidth={2}
                                     filter="url(#lineShadow)"
-                                    dot={(props) => {
-                                        const { cx, cy, payload, index } = props;
-                                        // Show dots for first, last, and significant points
-                                        if (
-                                            index === 0 ||
-                                            index === chartData.length - 1 ||
-                                            payload.value === highValue ||
-                                            (payload.value > 0 && payload.value === lowValue && lowValue > 0)
-                                        ) {
-                                            return (
-                                                <circle
-                                                    key={`dot-${index}`}
-                                                    cx={cx}
-                                                    cy={cy}
-                                                    r={6}
-                                                    fill={chartConfig.value.color}
-                                                    stroke="white"
-                                                    strokeWidth={2}
-                                                    filter="url(#dotShadow)"
-                                                />
-                                            );
-                                        }
-                                        return <g key={`dot-${index}`} />;
-                                    }}
+                                    dot={false}
                                     activeDot={{
                                         r: 6,
                                         fill: chartConfig.value.color,

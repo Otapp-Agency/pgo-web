@@ -10,28 +10,80 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useActionState } from 'react'
-import { login } from '@/app/(auth)/actions/auth.actions'
-import { FormState } from '@/lib/definitions'
+import { useTRPC } from '@/lib/trpc/client'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import Image from "next/image"
+
+type FormState = {
+  errors?: {
+    username?: string[]
+    password?: string[]
+  }
+  message?: string
+} | undefined
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [state, action, pending] = useActionState(
-    async (prevState: FormState, formData: FormData) => {
-      const result = await login(prevState, formData)
-      return result ?? undefined
+  const router = useRouter()
+  const trpc = useTRPC()
+  const [state, setState] = useState<FormState>(undefined)
+
+  const loginMutation = useMutation(trpc.auth.login.mutationOptions({
+    onSuccess: (data) => {
+      if (data.success) {
+        // Redirect based on password change requirement
+        router.push(data.redirectTo || '/dashboard')
+      }
     },
-    undefined
-  )
+    onError: (error: unknown) => {
+      // Handle validation errors
+      const trpcError = error as { data?: { code?: string }; cause?: unknown; message?: string }
+      if (trpcError.data?.code === 'BAD_REQUEST' && trpcError.cause && typeof trpcError.cause === 'object' && 'errors' in trpcError.cause) {
+        setState({
+          errors: (trpcError.cause as { errors?: { username?: string[]; password?: string[] } }).errors,
+          message: trpcError.message,
+        })
+      } else {
+        setState({
+          message: trpcError.message || 'An error occurred',
+        })
+      }
+    },
+  }))
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setState(undefined)
+
+    const formData = new FormData(e.currentTarget)
+    const username = formData.get('username') as string
+    const password = formData.get('password') as string
+
+    // Validate form data
+    if (!username || !password) {
+      setState({
+        errors: {
+          username: !username ? ['Username is required.'] : undefined,
+          password: !password ? ['Password field must not be empty.'] : undefined,
+        },
+      })
+      return
+    }
+
+    loginMutation.mutate({ username, password })
+  }
+
+  const pending = loginMutation.isPending
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form action={action} className="p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="p-6 md:p-8">
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>

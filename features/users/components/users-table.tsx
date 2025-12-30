@@ -18,13 +18,10 @@ import {
 } from "@tabler/icons-react"
 import {
     ColumnDef,
-    ColumnFiltersState,
     flexRender,
     getCoreRowModel,
     Header,
-    SortingState,
     useReactTable,
-    VisibilityState,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
 import { useSuspenseQuery } from "@tanstack/react-query"

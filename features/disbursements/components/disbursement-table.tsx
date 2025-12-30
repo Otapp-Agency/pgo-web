@@ -31,6 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Disbursement, DisbursementSchema } from "@/lib/definitions"
 import { useDisbursementsTableStore } from "@/lib/stores/disbursements-table-store"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { DisbursementFilters } from "@/features/disbursements/components/disbursement-filters"
 import {
     CompleteDisbursementDialog,
@@ -84,7 +85,6 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 // import { TableSkeletonRows } from "@/components/ui/table-skeleton"
-import { DISBURSEMENTS_TABLE_COLUMNS } from "@/components/ui/table-skeleton-presets"
 import { useTRPC } from "@/lib/trpc/client"
 
 // Helper function to format amount with currency
@@ -344,9 +344,16 @@ function TableCellViewer({ item, displayText }: { item: Disbursement; displayTex
                         </div>
                     </div>
                 </div>
-                <DrawerFooter>
+                <DrawerFooter className="flex flex-row gap-2">
+                    {item.uid && (
+                        <Button variant="default" asChild className="flex-1">
+                            <Link href={`/disbursements/${item.uid}`}>
+                                View Complete Details
+                            </Link>
+                        </Button>
+                    )}
                     <DrawerClose asChild>
-                        <Button variant="outline">Close</Button>
+                        <Button variant="outline" className={item.uid ? "flex-1" : "w-full"}>Close</Button>
                     </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>
@@ -632,9 +639,16 @@ function ActionsCell({ disbursement }: { disbursement: Disbursement }) {
                             </div>
                         </div>
                     </div>
-                    <DrawerFooter>
+                    <DrawerFooter className="flex flex-row gap-2">
+                        {disbursement.uid && (
+                            <Button variant="default" asChild className="flex-1">
+                                <Link href={`/disbursements/${disbursement.uid}`}>
+                                    View Complete Details
+                                </Link>
+                            </Button>
+                        )}
                         <DrawerClose asChild>
-                            <Button variant="outline">Close</Button>
+                            <Button variant="outline" className={disbursement.uid ? "flex-1" : "w-full"}>Close</Button>
                         </DrawerClose>
                     </DrawerFooter>
                 </DrawerContent>
@@ -816,7 +830,6 @@ interface PaginationMeta {
 export function DisbursementTable({
     data,
     paginationMeta,
-    isLoading = false,
 }: {
     data: Disbursement[];
     paginationMeta: PaginationMeta;
@@ -829,7 +842,6 @@ export function DisbursementTable({
         sorting,
         columnVisibility,
         rowSelection,
-        filters,
         setPageIndex,
         setPageSize,
         setSorting,

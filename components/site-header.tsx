@@ -1,24 +1,8 @@
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { getUserFromSession } from "@/lib/auth/services/auth.service"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { logout } from "@/app/(auth)/actions/auth.actions"
-import { LogOut, User } from "lucide-react"
-import { ThemeSwitcher } from "./ui/shadcn-io/theme-switcher"
 import { ThemeToggle } from "./theme-toggle"
 
 export async function SiteHeader() {
-  const user = await getUserFromSession()
-
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) sticky top-0 z-40 backdrop-blur-2xl">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
@@ -60,20 +44,13 @@ export async function SiteHeader() {
                   </a>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <form action={logout}>
-                  <DropdownMenuItem asChild>
-                    <button type="submit" className="w-full flex items-center">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log out
-                    </button>
-                  </DropdownMenuItem>
-                </form>
+                <LogoutButton />
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div> */}
         <div className="ml-auto flex items-center gap-2">
-        <ThemeToggle />
+          <ThemeToggle />
         </div>
       </div>
     </header>

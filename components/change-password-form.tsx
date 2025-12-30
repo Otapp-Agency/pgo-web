@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,8 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { useTRPC } from '@/lib/trpc/client';
+import { useMutation } from '@tanstack/react-query';
 
 const ChangePasswordSchema = z.object({
     current_password: z.string().min(1, 'Current password is required'),
@@ -52,7 +53,7 @@ export function ChangePasswordForm({
     redirectTo = '/dashboard',
 }: ChangePasswordFormProps) {
     const router = useRouter();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const trpc = useTRPC();
 
     const form = useForm<ChangePasswordInput>({
         resolver: zodResolver(ChangePasswordSchema),
@@ -63,38 +64,26 @@ export function ChangePasswordForm({
         },
     });
 
-    const onSubmit = async (data: ChangePasswordInput) => {
-        setIsSubmitting(true);
-        try {
-            const response = await fetch('/api/auth/change-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    currentPassword: data.current_password,
-                    newPassword: data.new_password,
-                    confirmPassword: data.confirm_password,
-                }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || result.message || 'Failed to change password');
-            }
-
-            toast.success('Password changed successfully');
+    const changePasswordMutation = useMutation(trpc.auth.changePassword.mutationOptions({
+        onSuccess: (data) => {
+            toast.success(data.message || 'Password changed successfully');
             form.reset();
             
             // Redirect after successful password change
-            // Navigation will automatically trigger a refresh, so no need to call router.refresh()
             router.push(redirectTo);
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to change password');
-        } finally {
-            setIsSubmitting(false);
-        }
+        },
+        onError: (error: unknown) => {
+            const trpcError = error as { message?: string }
+            toast.error(trpcError.message || 'Failed to change password');
+        },
+    }));
+
+    const onSubmit = async (data: ChangePasswordInput) => {
+        changePasswordMutation.mutate({
+            currentPassword: data.current_password,
+            newPassword: data.new_password,
+            confirmPassword: data.confirm_password,
+        });
     };
 
     return (
@@ -174,9 +163,9 @@ export function ChangePasswordForm({
                                 <Button
                                     type="submit"
                                     className="w-full"
-                                    disabled={isSubmitting}
+                                    disabled={changePasswordMutation.isPending}
                                 >
-                                    {isSubmitting && (
+                                    {changePasswordMutation.isPending && (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     )}
                                     Change Password
