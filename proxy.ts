@@ -1,33 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decryptSession } from '@/lib/auth/dal/session.dal'
 import { hasAnyPermission } from '@/lib/auth/permissions'
-import { menuConfig } from '@/lib/menu-config'
+import { adminMenuConfig, merchantMenuConfig, type PortalType } from '@/lib/menu-config'
 import { PERMISSIONS } from '@/lib/auth/permissions'
+import {
+  canAccessRoute,
+  getDefaultRedirect,
+  isValidUserType,
+} from '@/lib/auth/user-types'
 
 const publicRoutes = ['/login']
-const authOnlyRoutes = ['/change-password', '/unauthorized', '/dashboard']
+// Routes that only require authentication (no user type or permission check)
+const authOnlyRoutes = ['/change-password', '/unauthorized']
 
-// Build route-to-permission mapping from menu config
-const routePermissions: Record<string, { permission?: string; permissions?: string[]; requireAll?: boolean }> = {}
-
-menuConfig.navMain.forEach(item => {
-  if (item.url && item.url !== '#') {
-    routePermissions[item.url] = {
-      permission: item.permission,
-      permissions: item.permissions,
-      requireAll: item.requireAll,
-    }
+/**
+ * Determine portal type from route path
+ */
+function getPortalFromPath(path: string): PortalType | null {
+  if (path.startsWith('/admin')) {
+    return 'admin'
   }
-})
-
-// Add additional routes
-routePermissions['/payment-gateways'] = {
-  permission: PERMISSIONS.PAYMENT_GATEWAYS.VIEW,
+  if (path.startsWith('/merchant')) {
+    return 'merchant'
+  }
+  return null
 }
 
 /**
+ * Build route-to-permission mapping from menu config
+ */
+function buildRoutePermissions(): Record<string, { permission?: string; permissions?: string[]; requireAll?: boolean }> {
+  const routePermissions: Record<string, { permission?: string; permissions?: string[]; requireAll?: boolean }> = {}
+
+  // Add admin routes
+  adminMenuConfig.navMain.forEach(item => {
+    if (item.url && item.url !== '#') {
+      routePermissions[item.url] = {
+        permission: item.permission,
+        permissions: item.permissions,
+        requireAll: item.requireAll,
+      }
+    }
+  })
+
+  // Add merchant routes
+  merchantMenuConfig.navMain.forEach(item => {
+    if (item.url && item.url !== '#') {
+      routePermissions[item.url] = {
+        permission: item.permission,
+        permissions: item.permissions,
+        requireAll: item.requireAll,
+      }
+    }
+  })
+
+  // Add additional routes
+  routePermissions['/admin/payment-gateways'] = {
+    permission: PERMISSIONS.PAYMENT_GATEWAYS.VIEW,
+  }
+
+  return routePermissions
+}
+
+const routePermissions = buildRoutePermissions()
+
+/**
  * Normalize route path by removing dynamic segments
- * Example: /merchants/abc123 -> /merchants
+ * Example: /admin/merchants/abc123 -> /admin/merchants
  */
 function normalizeRoute(path: string): string {
   let normalized = path.replace(/\/$/, '')
@@ -63,10 +102,12 @@ function getRoutePermission(path: string): { permission?: string; permissions?: 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname
   const isPublicRoute = publicRoutes.includes(path)
+  const isAuthOnlyRoute = authOnlyRoutes.includes(path)
 
   console.log('[PROXY] Request:', {
     path,
     isPublicRoute,
+    isAuthOnlyRoute,
     method: req.method,
   })
 
@@ -81,6 +122,7 @@ export default async function proxy(req: NextRequest) {
     hasSession: !!session,
     userId: session?.userId,
     username: session?.username,
+    userType: session?.userType,
     roles: session?.roles,
     rolesType: typeof session?.roles,
     isArray: Array.isArray(session?.roles),
@@ -103,27 +145,67 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.nextUrl))
   }
 
-  // Redirect authenticated users away from login page
-  if (isPublicRoute && isValidSession && path === '/login') {
-    console.log('[PROXY] ✓ Redirecting authenticated user from /login to /dashboard')
-    return NextResponse.redirect(new URL('/dashboard', req.nextUrl))
+  // Redirect authenticated users away from login page to their appropriate portal
+  if (isPublicRoute && isValidSession && path === '/login' && session) {
+    const redirectTo = getDefaultRedirect(session.userType)
+    console.log('[PROXY] ✓ Redirecting authenticated user from /login to:', redirectTo)
+    return NextResponse.redirect(new URL(redirectTo, req.nextUrl))
+  }
+
+  // Handle root path redirect for authenticated users
+  if (path === '/' && isValidSession && session) {
+    const redirectTo = getDefaultRedirect(session.userType)
+    console.log('[PROXY] ✓ Redirecting from root to:', redirectTo)
+    return NextResponse.redirect(new URL(redirectTo, req.nextUrl))
   }
 
   // Authorization check (only for authenticated users on protected routes)
   if (isProtected && isValidSession && session) {
     const userRoles = session.roles || []
+    const userType = session.userType
 
     console.log('[PROXY] Authorization Check:', {
       path,
+      userType,
       userRoles,
       userRolesCount: userRoles.length,
     })
 
-    // Special routes that only require authentication
-    if (authOnlyRoutes.includes(path)) {
+    // Auth-only routes just require authentication, no user type or permission check
+    if (isAuthOnlyRoute) {
       console.log('[PROXY] ✓ Auth-only route, allowing access:', path)
       return NextResponse.next()
     }
+
+    // ========================================
+    // LAYER 1: User Type Check (Base Layer)
+    // ========================================
+    const portal = getPortalFromPath(path)
+
+    if (portal) {
+      // Route belongs to a specific portal, check user type access
+      if (!isValidUserType(userType)) {
+        console.log('[PROXY] ❌ Invalid user type, redirecting to /unauthorized')
+        return NextResponse.redirect(new URL('/unauthorized', req.nextUrl))
+      }
+
+      if (!canAccessRoute(userType, path)) {
+        // User is trying to access wrong portal - redirect to their correct portal
+        const correctRedirect = getDefaultRedirect(userType)
+        console.log('[PROXY] ❌ User type mismatch, redirecting to correct portal:', {
+          userType,
+          attemptedPath: path,
+          correctRedirect,
+        })
+        return NextResponse.redirect(new URL(correctRedirect, req.nextUrl))
+      }
+
+      console.log('[PROXY] ✓ User type check passed:', { userType, portal })
+    }
+
+    // ========================================
+    // LAYER 2: Role/Permission Check
+    // ========================================
 
     // Get route permission requirement
     const routePermission = getRoutePermission(path)
@@ -139,7 +221,6 @@ export default async function proxy(req: NextRequest) {
     })
 
     // If route has permission requirements, check them
-    // Check that either: (1) permission exists OR (2) permissions array exists AND has items
     const hasPermissionRequirement = routePermission?.permission ||
       (routePermission?.permissions && routePermission.permissions.length > 0)
 
@@ -204,7 +285,6 @@ export default async function proxy(req: NextRequest) {
     } else {
       console.log('[PROXY] ✓ No permission requirement, allowing authenticated access')
     }
-    // If route has no permission requirement, allow authenticated access
   }
 
   console.log('[PROXY] ✓ Request allowed')

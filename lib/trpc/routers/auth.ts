@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { publicProcedure, protectedProcedure, createTRPCRouter } from '../init';
 import { login as authLogin, logout as authLogout, clearExpiredSession as authClearExpiredSession, createSession, getSession } from '@/lib/auth/services/auth.service';
 import { API_CONFIG, API_ENDPOINTS } from '@/lib/config/api';
+import { getDefaultRedirect } from '@/lib/auth/user-types';
 
 /**
  * Login input schema
@@ -82,20 +83,32 @@ export const authRouter = createTRPCRouter({
             const { username, password } = input;
 
             try {
-                // Call auth service
+                // Call auth service (this creates the session)
                 const result = await authLogin({ username, password });
                 const requirePasswordChange = result.requirePasswordChange;
 
-                // Determine redirect path
-                let redirectTo = '/dashboard';
+                // Get session to determine user type for redirect
+                const session = await getSession();
+                const userType = session?.userType;
+
+                // Determine redirect path based on user type
+                let redirectTo = getDefaultRedirect(userType);
                 if (requirePasswordChange) {
                     redirectTo = '/change-password';
                 }
+
+                console.log('[AUTH] Login successful:', {
+                    username,
+                    userType,
+                    requirePasswordChange,
+                    redirectTo,
+                });
 
                 return {
                     success: true,
                     requirePasswordChange,
                     redirectTo,
+                    userType,
                 };
             } catch (error) {
                 console.error('Login error:', error);
@@ -141,7 +154,7 @@ export const authRouter = createTRPCRouter({
      */
     changePassword: protectedProcedure
         .input(changePasswordInputSchema)
-        .mutation(async ({ input, ctx }) => {
+        .mutation(async ({ input }) => {
             const { currentPassword, newPassword, confirmPassword } = input;
 
             // Get session for authentication
@@ -173,6 +186,8 @@ export const authRouter = createTRPCRouter({
                 });
 
                 const data = await response.json().catch(() => ({}));
+
+                console.log('Change password data:', data);
 
                 if (!response.ok) {
                     console.error('Change password error:', {

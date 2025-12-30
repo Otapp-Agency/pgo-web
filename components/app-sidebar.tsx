@@ -10,14 +10,23 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { getUserFromSession, verifySession } from "@/lib/auth/services/auth.service"
-import { menuConfig } from "@/lib/menu-config"
+import { getMenuConfigForUserType, type PortalType } from "@/lib/menu-config"
 import { filterMenuItems } from "@/lib/menu-utils"
 import { Logo } from "@/components/logo"
 
-export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  portal?: PortalType
+}
+
+export async function AppSidebar({ ...props }: AppSidebarProps) {
   const user = await getUserFromSession()
   const session = await verifySession()
   const userRoles = session?.roles || []
+  const userType = session?.userType
+
+  // Get menu config based on user type
+  // Note: portal prop reserved for future use (explicit override)
+  const menuConfig = getMenuConfigForUserType(userType)
 
   // Filter menu items based on user roles
   const filteredNavMain = filterMenuItems(menuConfig.navMain, userRoles)

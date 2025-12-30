@@ -514,7 +514,7 @@ function ActionCell({ merchant }: ActionCellProps) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => merchant.uid && router.push(`/merchants/${merchant.uid}`)}>
+                    <DropdownMenuItem onClick={() => merchant.uid && router.push(`/admin/merchants/${merchant.uid}`)}>
                         View Details
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
