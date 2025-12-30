@@ -18,6 +18,7 @@ import { IconLoader, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconCh
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Merchant } from '@/lib/definitions';
+import { NewSubmerchantDrawer } from './new-submerchant-drawer';
 
 interface MerchantSubmerchantsTabProps {
     merchantUid: string;
@@ -37,6 +38,12 @@ export default function MerchantSubmerchantsTab({ merchantUid }: MerchantSubmerc
     const [page, setPage] = useState(0);
     const perPage = 15;
     const trpc = useTRPC();
+
+    // Fetch merchant details to get the ID
+    const { data: merchant, isLoading: isLoadingMerchant } = useQuery(
+        trpc.merchants.getByUid.queryOptions({ uid: merchantUid })
+    );
+
     const { data, isLoading, error } = useQuery(
         trpc.merchants.getSubMerchants.queryOptions({
             uid: merchantUid,
@@ -45,7 +52,7 @@ export default function MerchantSubmerchantsTab({ merchantUid }: MerchantSubmerc
         })
     );
 
-    if (isLoading) {
+    if (isLoading || isLoadingMerchant) {
         return (
             <Card>
                 <CardHeader>
@@ -94,20 +101,49 @@ export default function MerchantSubmerchantsTab({ merchantUid }: MerchantSubmerc
         first: true,
     };
 
+    // Convert merchant ID from string to number for the form
+    const merchantId = merchant?.id ? (typeof merchant.id === 'string' ? parseInt(merchant.id, 10) : merchant.id) : null;
+
+    // Check if merchant is a PLATFORM merchant (only PLATFORM merchants can have sub-merchants)
+    const isPlatformMerchant = merchant?.merchant_role?.toUpperCase() === 'PLATFORM';
+    const canCreateSubmerchant = merchantId && !isNaN(merchantId) && isPlatformMerchant;
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Sub-merchants</CardTitle>
-                <CardDescription>
-                    {paginationMeta.totalElements > 0
-                        ? `${paginationMeta.totalElements} sub-merchant${paginationMeta.totalElements !== 1 ? 's' : ''} found`
-                        : 'No sub-merchants found'}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Sub-merchants</CardTitle>
+                        <CardDescription>
+                            {paginationMeta.totalElements > 0
+                                ? `${paginationMeta.totalElements} sub-merchant${paginationMeta.totalElements !== 1 ? 's' : ''} found`
+                                : 'No sub-merchants found'}
+                            {!isPlatformMerchant && merchant && (
+                                <span className="block mt-1 text-xs text-muted-foreground">
+                                    Only PLATFORM merchants can have sub-merchants. Current role: {merchant.merchant_role || 'N/A'}
+                                </span>
+                            )}
+                        </CardDescription>
+                    </div>
+                    {canCreateSubmerchant && (
+                        <NewSubmerchantDrawer parentMerchantId={merchantId} />
+                    )}
+                </div>
             </CardHeader>
             <CardContent>
                 {subMerchants.length === 0 ? (
-                    <div className="py-8 text-center text-muted-foreground">
-                        No sub-merchants found for this merchant.
+                    <div className="flex flex-col items-center justify-center gap-4 py-8">
+                        <p className="text-muted-foreground">
+                            No sub-merchants found for this merchant.
+                        </p>
+                        {!isPlatformMerchant && merchant && (
+                            <p className="text-sm text-muted-foreground text-center max-w-md">
+                                Only PLATFORM merchants can have sub-merchants. This merchant has the role: <strong>{merchant.merchant_role || 'N/A'}</strong>
+                            </p>
+                        )}
+                        {canCreateSubmerchant && (
+                            <NewSubmerchantDrawer parentMerchantId={merchantId} />
+                        )}
                     </div>
                 ) : (
                     <>

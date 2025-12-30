@@ -83,7 +83,9 @@ export default function MerchantDetails({ merchantUid }: MerchantDetailsProps) {
             <Tabs defaultValue="overview" className="flex flex-1 flex-col gap-4 px-4 lg:px-6">
                 <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="sub-merchants">Sub-merchants</TabsTrigger>
+                    {merchant.merchant_role?.toUpperCase() === 'PLATFORM' && (
+                        <TabsTrigger value="sub-merchants">Sub-merchants</TabsTrigger>
+                    )}
                     <TabsTrigger value="activity">Activity</TabsTrigger>
                     <TabsTrigger value="bank-accounts">Bank Accounts</TabsTrigger>
                     <TabsTrigger value="api-keys">API Keys</TabsTrigger>
@@ -93,9 +95,11 @@ export default function MerchantDetails({ merchantUid }: MerchantDetailsProps) {
                     <MerchantOverviewTab merchant={merchant} />
                 </TabsContent>
 
-                <TabsContent value="sub-merchants" className="flex-1">
-                    <MerchantSubmerchantsTab merchantUid={merchantUid} />
-                </TabsContent>
+                {merchant.merchant_role?.toUpperCase() === 'PLATFORM' && (
+                    <TabsContent value="sub-merchants" className="flex-1">
+                        <MerchantSubmerchantsTab merchantUid={merchantUid} />
+                    </TabsContent>
+                )}
 
                 <TabsContent value="activity" className="flex-1">
                     <MerchantActivityTab merchantUid={merchantUid} />

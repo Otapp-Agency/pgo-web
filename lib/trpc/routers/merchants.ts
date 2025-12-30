@@ -236,6 +236,8 @@ export const merchantsRouter = createTRPCRouter({
 
             const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.merchants.create}`;
 
+            console.log('Creating merchant with payload:', JSON.stringify(input, null, 2));
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -245,11 +247,38 @@ export const merchantsRouter = createTRPCRouter({
                 body: JSON.stringify(input),
             });
 
-            const data = await response.json().catch(() => ({}));
+            const data = await response.json().catch((parseError) => {
+                console.error('Failed to parse response JSON:', parseError);
+                return {};
+            });
+
+            console.log('Merchant creation response status:', response.status);
+            console.log('Merchant creation response data:', JSON.stringify(data, null, 2));
 
             if (!response.ok) {
+                console.error('Merchant creation failed:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data,
+                });
+
+                // Use appropriate error code based on status
+                // TRPC error codes: PARSE_ERROR, BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, METHOD_NOT_SUPPORTED, TIMEOUT, CONFLICT, PRECONDITION_FAILED, PAYLOAD_TOO_LARGE, UNPROCESSABLE_CONTENT, INTERNAL_SERVER_ERROR
+                let errorCode: 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR' = 'INTERNAL_SERVER_ERROR';
+                if (response.status >= 400 && response.status < 500) {
+                    if (response.status === 401) {
+                        errorCode = 'UNAUTHORIZED';
+                    } else if (response.status === 403) {
+                        errorCode = 'FORBIDDEN';
+                    } else if (response.status === 404) {
+                        errorCode = 'NOT_FOUND';
+                    } else {
+                        errorCode = 'BAD_REQUEST';
+                    }
+                }
+
                 throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
+                    code: errorCode,
                     message: data.message || data.error || 'Failed to create merchant',
                 });
             }
@@ -489,7 +518,7 @@ export const merchantsRouter = createTRPCRouter({
         .input(
             z.object({
                 uid: z.string(),
-                 
+
                 body: z.record(z.string(), z.any()).optional(),
             })
         )

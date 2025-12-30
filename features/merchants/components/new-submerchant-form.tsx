@@ -1,8 +1,8 @@
 'use client';
 
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +24,9 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
-import { CreateMerchantRequestSchema, type CreateMerchantRequest, Merchant } from '@/lib/definitions';
+import { CreateMerchantRequestSchema, type CreateMerchantRequest } from '@/lib/definitions';
 import { useTRPC } from '@/lib/trpc/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 // Merchant type options
@@ -39,20 +39,12 @@ const MERCHANT_TYPES = [
     { value: 'OTHER', label: 'Other' },
 ] as const;
 
-// Merchant role options
-const MERCHANT_ROLES = [
-    { value: 'ROOT', label: 'Root' },
-    { value: 'PLATFORM', label: 'Platform' },
-    { value: 'SUBMERCHANT', label: 'Submerchant' },
-    { value: 'AGENT', label: 'Agent' },
-    { value: 'PARTNER', label: 'Partner' },
-] as const;
-
-interface NewMerchantFormProps {
+interface NewSubmerchantFormProps {
+    parentMerchantId: number;
     onSuccess?: () => void;
 }
 
-export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
+export function NewSubmerchantForm({ parentMerchantId, onSuccess }: NewSubmerchantFormProps) {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
@@ -60,10 +52,29 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
         trpc.merchants.create.mutationOptions({
             onSuccess: (data) => {
                 queryClient.invalidateQueries({ queryKey: ['merchants', 'list'] });
-                toast.success(data.message || 'Merchant created successfully');
+                queryClient.invalidateQueries({ queryKey: ['merchants', 'getSubMerchants'] });
+                toast.success(data.message || 'Sub-merchant created successfully');
             },
             onError: (error) => {
-                toast.error(error.message || 'Failed to create merchant');
+                console.error('Sub-merchant creation error:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    cause: error.cause,
+                    stack: error.stack,
+                    data: (error as any).data,
+                    shape: (error as any).shape,
+                    name: error.name,
+                });
+
+                // Extract error message from tRPC error
+                let errorMessage = error.message || 'Failed to create sub-merchant';
+
+                // Check if it's the specific parent merchant validation error
+                if (errorMessage.includes('Only PLATFORM merchants can be assigned as parents')) {
+                    errorMessage = 'Only PLATFORM merchants can be assigned as parents. Please ensure the parent merchant has the PLATFORM role.';
+                }
+
+                toast.error(errorMessage);
             },
         })
     );
@@ -84,40 +95,13 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
             contactPhone: '',
             websiteUrl: '',
             merchantType: 'RETAIL',
-            merchantRole: 'PLATFORM',
-            parentMerchantId: null,
+            merchantRole: 'SUBMERCHANT',
+            parentMerchantId: parentMerchantId,
             singleTransactionLimit: undefined,
             dailyTransactionLimit: undefined,
             monthlyTransactionLimit: undefined,
         },
     });
-
-    const merchantRole = useWatch({ control: form.control, name: 'merchantRole' });
-
-    // Fetch PLATFORM merchants for parent merchant dropdown
-    const {
-        data: merchantsData,
-        isLoading: merchantsLoading,
-        isError: merchantsError,
-        isFetching: merchantsFetching,
-        refetch: refetchMerchants,
-    } = useQuery({
-        ...trpc.merchants.list.queryOptions({
-            page: '0',
-            per_page: '100',
-        }),
-        enabled: merchantRole === 'SUBMERCHANT',
-        refetchInterval: false,
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchOnReconnect: false,
-    });
-
-    // Extract and filter PLATFORM merchants
-    const allMerchants = merchantsData?.data ?? [];
-    const platformMerchants = allMerchants.filter(
-        (merchant: Merchant) => merchant.merchant_role?.toUpperCase() === 'PLATFORM'
-    );
 
     const onSubmit = async (data: CreateMerchantRequest) => {
         try {
@@ -125,13 +109,34 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
             const cleanData = {
                 ...data,
                 websiteUrl: data.websiteUrl || undefined,
-                parentMerchantId: data.merchantRole === 'SUBMERCHANT' ? data.parentMerchantId : null,
+                parentMerchantId: parentMerchantId,
             };
+            console.log('Submitting sub-merchant creation:', cleanData);
             await createMerchantMutation.mutateAsync(cleanData);
-            form.reset();
+            form.reset({
+                merchantName: '',
+                merchantCode: '',
+                businessName: '',
+                businessRegistrationNumber: '',
+                businessAddress: '',
+                businessCity: '',
+                businessState: '',
+                businessPostalCode: '',
+                businessCountry: '',
+                contactEmail: '',
+                contactPhone: '',
+                websiteUrl: '',
+                merchantType: 'RETAIL',
+                merchantRole: 'SUBMERCHANT',
+                parentMerchantId: parentMerchantId,
+                singleTransactionLimit: undefined,
+                dailyTransactionLimit: undefined,
+                monthlyTransactionLimit: undefined,
+            });
             onSuccess?.();
-        } catch {
+        } catch (error) {
             // Error is handled by the mutation's onError callback
+            console.error('Sub-merchant form submission error:', error);
         }
     };
 
@@ -200,152 +205,58 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                         )}
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="merchantType"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Merchant Type *</FormLabel>
-                                    <Select
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {MERCHANT_TYPES.map((type) => (
-                                                <SelectItem key={type.value} value={type.value}>
-                                                    {type.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                    <FormField
+                        control={form.control}
+                        name="merchantType"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Merchant Type *</FormLabel>
+                                <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {MERCHANT_TYPES.map((type) => (
+                                            <SelectItem key={type.value} value={type.value}>
+                                                {type.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        <FormField
-                            control={form.control}
-                            name="merchantRole"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Merchant Role *</FormLabel>
-                                    <Select
-                                        onValueChange={(value) => {
-                                            field.onChange(value);
-                                            if (value !== 'SUBMERCHANT') {
-                                                form.setValue('parentMerchantId', null);
-                                            }
-                                        }}
-                                        defaultValue={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select role" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {MERCHANT_ROLES.map((role) => (
-                                                <SelectItem key={role.value} value={role.value}>
-                                                    {role.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-
-                    {merchantRole === 'SUBMERCHANT' && (
-                        <FormField
-                            control={form.control}
-                            name="parentMerchantId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Parent Merchant *</FormLabel>
-                                    <Select
-                                        onValueChange={(value) => {
-                                            if (value === '' || value === 'none' || value === 'loading') {
-                                                field.onChange(null);
-                                            } else {
-                                                const merchantId = parseInt(value, 10);
-                                                if (!isNaN(merchantId)) {
-                                                    field.onChange(merchantId);
-                                                }
-                                            }
-                                        }}
-                                        value={field.value !== null && field.value !== undefined ? field.value.toString() : ''}
-                                        disabled={merchantsLoading || merchantsFetching}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select a parent merchant" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {merchantsError ? (
-                                                <div className="px-2 py-1.5 text-sm">
-                                                    <div className="flex items-center gap-2 text-destructive">
-                                                        <AlertCircle className="h-4 w-4" />
-                                                        <span>Failed to load merchants</span>
-                                                    </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="mt-2 h-auto p-1 text-xs"
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            refetchMerchants();
-                                                        }}
-                                                    >
-                                                        <RefreshCw className="mr-1 h-3 w-3" />
-                                                        Retry
-                                                    </Button>
-                                                </div>
-                                            ) : merchantsLoading || merchantsFetching ? (
-                                                <SelectItem value="loading" disabled>
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                        Loading merchants...
-                                                    </div>
-                                                </SelectItem>
-                                            ) : platformMerchants && platformMerchants.length > 0 ? (
-                                                platformMerchants.map((merchant: Merchant) => {
-                                                    const merchantId = typeof merchant.id === 'string'
-                                                        ? parseInt(merchant.id, 10)
-                                                        : merchant.id;
-                                                    return (
-                                                        <SelectItem
-                                                            key={merchant.uid}
-                                                            value={merchantId.toString()}
-                                                        >
-                                                            {merchant.name} {merchant.code ? `(${merchant.code})` : ''}
-                                                        </SelectItem>
-                                                    );
-                                                })
-                                            ) : (
-                                                <SelectItem value="none" disabled>
-                                                    No PLATFORM merchants available
-                                                </SelectItem>
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        Select a PLATFORM merchant as the parent for this submerchant. Only PLATFORM merchants can be assigned as parents.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
+                    <FormField
+                        control={form.control}
+                        name="parentMerchantId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Parent Merchant ID</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="number"
+                                        disabled
+                                        value={field.value ?? ''}
+                                        onChange={field.onChange}
+                                        onBlur={field.onBlur}
+                                        name={field.name}
+                                        ref={field.ref}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    This sub-merchant will be linked to the parent merchant.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </div>
 
                 <Separator />
@@ -566,7 +477,7 @@ export function NewMerchantForm({ onSuccess }: NewMerchantFormProps) {
                     {createMerchantMutation.isPending && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Create Merchant
+                    Create Sub-merchant
                 </Button>
             </form>
         </Form>
