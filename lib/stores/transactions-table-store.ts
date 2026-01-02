@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { SortingState, VisibilityState } from '@tanstack/react-table';
 
 /**
@@ -71,76 +70,63 @@ const initialState: TransactionsTableState = {
 };
 
 export const useTransactionsTableStore = create<TransactionsTableState & TransactionsTableActions>()(
-    persist(
-        (set) => ({
-            ...initialState,
+    (set) => ({
+        ...initialState,
 
-            // Pagination actions
-            setPagination: (pagination) => set({ pagination }),
-            
-            setPageIndex: (pageIndex) => set((state) => ({
-                pagination: { ...state.pagination, pageIndex },
-            })),
-            
-            setPageSize: (pageSize) => set((state) => ({
-                pagination: { ...state.pagination, pageSize, pageIndex: 0 }, // Reset to first page
-            })),
+        // Pagination actions
+        setPagination: (pagination) => set({ pagination }),
 
-            // Sorting action
-            setSorting: (sorting) => set((state) => ({
-                sorting: typeof sorting === 'function' ? sorting(state.sorting) : sorting,
-            })),
+        setPageIndex: (pageIndex) => set((state) => ({
+            pagination: { ...state.pagination, pageIndex },
+        })),
 
-            // Server-side filter actions
-            setStatus: (status) => set((state) => ({
-                filters: { ...state.filters, status },
-                pagination: { ...state.pagination, pageIndex: 0 }, // Reset to first page on filter change
-            })),
+        setPageSize: (pageSize) => set((state) => ({
+            pagination: { ...state.pagination, pageSize, pageIndex: 0 }, // Reset to first page
+        })),
 
-            setDateRange: (startDate, endDate) => set((state) => ({
-                filters: { ...state.filters, startDate, endDate },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        // Sorting action
+        setSorting: (sorting) => set((state) => ({
+            sorting: typeof sorting === 'function' ? sorting(state.sorting) : sorting,
+        })),
 
-            setAmountRange: (amountMin, amountMax) => set((state) => ({
-                filters: { ...state.filters, amountMin, amountMax },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        // Server-side filter actions
+        setStatus: (status) => set((state) => ({
+            filters: { ...state.filters, status },
+            pagination: { ...state.pagination, pageIndex: 0 }, // Reset to first page on filter change
+        })),
 
-            setSearch: (search) => set((state) => ({
-                filters: { ...state.filters, search },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        setDateRange: (startDate, endDate) => set((state) => ({
+            filters: { ...state.filters, startDate, endDate },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            clearFilters: () => set((state) => ({
-                filters: initialFilters,
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        setAmountRange: (amountMin, amountMax) => set((state) => ({
+            filters: { ...state.filters, amountMin, amountMax },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            // Local UI state actions
-            setColumnVisibility: (visibility) => set((state) => ({
-                columnVisibility: typeof visibility === 'function' ? visibility(state.columnVisibility) : visibility,
-            })),
+        setSearch: (search) => set((state) => ({
+            filters: { ...state.filters, search },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            setRowSelection: (selection) => set((state) => ({
-                rowSelection: typeof selection === 'function' ? selection(state.rowSelection) : selection,
-            })),
+        clearFilters: () => set((state) => ({
+            filters: initialFilters,
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            // Reset all state
-            resetTableState: () => set(initialState),
-        }),
-        {
-            name: 'transactions-table-state',
-            partialize: (state) => ({
-                // Persist pagination, sorting, filters, and column visibility
-                // Don't persist rowSelection (reset on refresh)
-                pagination: state.pagination,
-                sorting: state.sorting,
-                filters: state.filters,
-                columnVisibility: state.columnVisibility,
-            }),
-        }
-    )
+        // Local UI state actions
+        setColumnVisibility: (visibility) => set((state) => ({
+            columnVisibility: typeof visibility === 'function' ? visibility(state.columnVisibility) : visibility,
+        })),
+
+        setRowSelection: (selection) => set((state) => ({
+            rowSelection: typeof selection === 'function' ? selection(state.rowSelection) : selection,
+        })),
+
+        // Reset all state
+        resetTableState: () => set(initialState),
+    })
 );
 
 /**

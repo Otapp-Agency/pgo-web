@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { SortingState, VisibilityState } from '@tanstack/react-table';
 
 /**
@@ -72,80 +71,67 @@ const initialState: DisbursementsTableState = {
 };
 
 export const useDisbursementsTableStore = create<DisbursementsTableState & DisbursementsTableActions>()(
-    persist(
-        (set) => ({
-            ...initialState,
+    (set) => ({
+        ...initialState,
 
-            // Pagination actions
-            setPagination: (pagination) => set({ pagination }),
+        // Pagination actions
+        setPagination: (pagination) => set({ pagination }),
 
-            setPageIndex: (pageIndex) => set((state) => ({
-                pagination: { ...state.pagination, pageIndex },
-            })),
+        setPageIndex: (pageIndex) => set((state) => ({
+            pagination: { ...state.pagination, pageIndex },
+        })),
 
-            setPageSize: (pageSize) => set((state) => ({
-                pagination: { ...state.pagination, pageSize, pageIndex: 0 }, // Reset to first page
-            })),
+        setPageSize: (pageSize) => set((state) => ({
+            pagination: { ...state.pagination, pageSize, pageIndex: 0 }, // Reset to first page
+        })),
 
-            // Sorting action
-            setSorting: (sorting) => set((state) => ({
-                sorting: typeof sorting === 'function' ? sorting(state.sorting) : sorting,
-            })),
+        // Sorting action
+        setSorting: (sorting) => set((state) => ({
+            sorting: typeof sorting === 'function' ? sorting(state.sorting) : sorting,
+        })),
 
-            // Server-side filter actions
-            setStatus: (status) => set((state) => ({
-                filters: { ...state.filters, status },
-                pagination: { ...state.pagination, pageIndex: 0 }, // Reset to first page on filter change
-            })),
+        // Server-side filter actions
+        setStatus: (status) => set((state) => ({
+            filters: { ...state.filters, status },
+            pagination: { ...state.pagination, pageIndex: 0 }, // Reset to first page on filter change
+        })),
 
-            setDateRange: (startDate, endDate) => set((state) => ({
-                filters: { ...state.filters, startDate, endDate },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        setDateRange: (startDate, endDate) => set((state) => ({
+            filters: { ...state.filters, startDate, endDate },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            setAmountRange: (amountMin, amountMax) => set((state) => ({
-                filters: { ...state.filters, amountMin, amountMax },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        setAmountRange: (amountMin, amountMax) => set((state) => ({
+            filters: { ...state.filters, amountMin, amountMax },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            setSearch: (search) => set((state) => ({
-                filters: { ...state.filters, search },
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        setSearch: (search) => set((state) => ({
+            filters: { ...state.filters, search },
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            clearFilters: () => set((state) => ({
-                filters: initialFilters,
-                pagination: { ...state.pagination, pageIndex: 0 },
-            })),
+        clearFilters: () => set((state) => ({
+            filters: initialFilters,
+            pagination: { ...state.pagination, pageIndex: 0 },
+        })),
 
-            // Local UI state actions (keeping for backwards compatibility)
-            setColumnFilters: () => {
-                // No-op: filters are now server-side
-            },
+        // Local UI state actions (keeping for backwards compatibility)
+        setColumnFilters: () => {
+            // No-op: filters are now server-side
+        },
 
-            setColumnVisibility: (visibility) => set((state) => ({
-                columnVisibility: typeof visibility === 'function' ? visibility(state.columnVisibility) : visibility,
-            })),
+        setColumnVisibility: (visibility) => set((state) => ({
+            columnVisibility: typeof visibility === 'function' ? visibility(state.columnVisibility) : visibility,
+        })),
 
-            setRowSelection: (selection) => set((state) => ({
-                rowSelection: typeof selection === 'function' ? selection(state.rowSelection) : selection,
-            })),
+        setRowSelection: (selection) => set((state) => ({
+            rowSelection: typeof selection === 'function' ? selection(state.rowSelection) : selection,
+        })),
 
-            // Reset all state
-            resetTableState: () => set(initialState),
-        }),
-        {
-            name: 'disbursements-table-state',
-            partialize: (state) => ({
-                // Persist pagination, sorting, filters, and column visibility
-                // Don't persist rowSelection (reset on refresh)
-                pagination: state.pagination,
-                sorting: state.sorting,
-                filters: state.filters,
-                columnVisibility: state.columnVisibility,
-            }),
-        }
-    )
+        // Reset all state
+        resetTableState: () => set(initialState),
+    })
 );
 
 /**
