@@ -835,6 +835,7 @@ export function DisbursementTable({
     paginationMeta: PaginationMeta;
     isLoading?: boolean;
 }) {
+    "use no memo";
     const router = useRouter()
     // Get state from Zustand store
     const {
@@ -855,6 +856,7 @@ export function DisbursementTable({
         router.push(`/disbursements/${idToUse}`)
     }
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

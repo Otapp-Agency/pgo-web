@@ -381,6 +381,7 @@ export function UsersTable({
     data: User[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     const {
         pagination: paginationState,
         sorting: sortingState,
@@ -394,6 +395,7 @@ export function UsersTable({
         setRowSelection,
     } = useUsersTableStore()
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

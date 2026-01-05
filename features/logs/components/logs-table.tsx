@@ -334,6 +334,7 @@ export function LogsTable({
     data: AuditLog[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     const {
         pagination: paginationState,
         sorting: sortingState,
@@ -356,6 +357,7 @@ export function LogsTable({
         setIsDrawerOpen(true)
     }, [])
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

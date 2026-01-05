@@ -220,6 +220,7 @@ export function RolesTable({
     data: Role[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     const {
         pagination: paginationState,
         sorting: sortingState,
@@ -233,6 +234,7 @@ export function RolesTable({
         setRowSelection,
     } = useRolesTableStore()
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

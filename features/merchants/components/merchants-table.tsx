@@ -665,6 +665,7 @@ export function MerchantsTable({
     data: Merchant[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     const {
         pagination: paginationState,
         sorting: sortingState,
@@ -678,6 +679,7 @@ export function MerchantsTable({
         setRowSelection,
     } = useMerchantsTableStore()
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

@@ -793,6 +793,7 @@ export function TransactionTable({
     data: Transaction[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     // Get state from Zustand store
     const {
         pagination,
@@ -810,6 +811,7 @@ export function TransactionTable({
     // Drawer state for transaction details
     const [openTransactionUid, setOpenTransactionUid] = React.useState<string | null>(null)
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

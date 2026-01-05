@@ -352,6 +352,7 @@ export function PaymentGatewaysTable({
     data: PaymentGateway[];
     paginationMeta: PaginationMeta;
 }) {
+    "use no memo";
     const {
         pagination: paginationState,
         sorting: sortingState,
@@ -365,6 +366,7 @@ export function PaymentGatewaysTable({
         setRowSelection,
     } = usePaymentGatewaysTableStore()
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
         columns,

@@ -133,10 +133,12 @@ interface RecentDisbursementsTableProps {
 }
 
 export function RecentDisbursementsTable({ data }: RecentDisbursementsTableProps) {
+    "use no memo";
     const [sorting, setSorting] = React.useState<SortingState>([
         { id: 'createdAt', desc: true }, // Sort by most recent first
     ]);
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data: data || [],
         columns,
