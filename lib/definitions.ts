@@ -51,6 +51,7 @@ export const TransactionSchema = z.object({
   description: z.string(),
   pgoId: z.string(),
   pgoName: z.string(),
+  applicationName: z.string(),
   merchantId: z.string(),
   merchantName: z.string(),
   submerchantId: z.string(),

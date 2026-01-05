@@ -739,6 +739,21 @@ const columns: ColumnDef<Transaction>[] = [
         size: 120,
     },
     {
+        accessorKey: 'applicationName',
+        header: ({ header }) => (
+            <SortableHeader header={header}>
+                Application
+            </SortableHeader>
+        ),
+        filterFn: (row, id, value) => {
+            return value.includes(row.getValue(id))
+        },
+        cell: ({ row }) => (
+            <div className="max-w-[120px] min-w-[100px] truncate">{row.original.applicationName || "-"}</div>
+        ),
+        size: 120,
+    },
+    {
         accessorKey: "createdAt",
         header: ({ header }) => (
             <SortableHeader header={header}>
