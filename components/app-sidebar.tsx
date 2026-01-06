@@ -18,9 +18,10 @@ export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sideb
   const user = await getUserFromSession()
   const session = await verifySession()
   const userRoles = session?.roles || []
+  const userType = session?.userType
 
-  // Filter menu items based on user roles
-  const filteredNavMain = filterMenuItems(menuConfig.navMain, userRoles)
+  // Filter menu items based on user roles and user type
+  const filteredNavMain = filterMenuItems(menuConfig.navMain, userRoles, userType)
 
   const userData = user ? {
     name: `${user.firstName} ${user.lastName}`.trim() || user.username,

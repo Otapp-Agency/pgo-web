@@ -101,6 +101,8 @@ export const transactionsRouter = createTRPCRouter({
                 cache: 'no-store',
             });
 
+            console.log('Transaction Response', response);
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({
                     message: response.statusText || 'Failed to fetch transactions',

@@ -3,6 +3,8 @@
  * Define all available permissions in the system
  */
 
+import { filterValidRoles, isRoleValidForUserType } from './user-types'
+
 export const PERMISSIONS = {
     // User Management
     USERS: {
@@ -247,91 +249,76 @@ export function normalizeRoles(roles: string[]): string[] {
  * Check if a role has a specific permission
  * @param role - The role name to check
  * @param permission - The permission to check (e.g., 'users.create' or 'users.*')
+ * @param userType - Optional user type to validate role against
  * @returns true if the role has the permission, false otherwise
  */
-export function hasPermission(role: string, permission: string): boolean {
+export function hasPermission(role: string, permission: string, userType?: string | null): boolean {
+    // If user type is provided, validate that role is valid for user type
+    if (userType) {
+        if (!isRoleValidForUserType(role, userType)) {
+            return false
+        }
+    }
     // Normalize role (convert display name to code if needed)
     const normalizedRole = ROLE_DISPLAY_NAME_TO_CODE[role] || role
     const permissions = ROLE_PERMISSIONS[normalizedRole] || []
 
-    console.log('[PERMISSIONS] hasPermission check:', {
-        originalRole: role,
-        normalizedRole,
-        permission,
-        rolePermissions: permissions,
-        rolePermissionsCount: permissions.length,
-        hasRoleInMapping: normalizedRole in ROLE_PERMISSIONS,
-        availableRoles: Object.keys(ROLE_PERMISSIONS),
-    })
-
     // Check for super admin (all permissions)
     if (permissions.includes(PERMISSIONS.SYSTEM.ALL)) {
-        console.log('[PERMISSIONS] ✓ Super admin has all permissions')
         return true
     }
 
     // Check exact match
     if (permissions.includes(permission)) {
-        console.log('[PERMISSIONS] ✓ Exact permission match found')
         return true
     }
 
     // Check wildcard match (e.g., 'users.*' matches 'users.create')
-    const wildcardMatch = permissions.some(p => {
+    return permissions.some(p => {
         if (p.endsWith('.*')) {
             const prefix = p.slice(0, -2) // Remove '.*'
-            const matches = permission.startsWith(prefix + '.') || permission === prefix
-            if (matches) {
-                console.log('[PERMISSIONS] ✓ Wildcard match found:', { wildcard: p, permission })
-            }
-            return matches
+            return permission.startsWith(prefix + '.') || permission === prefix
         }
         return false
     })
-
-    if (!wildcardMatch) {
-        console.log('[PERMISSIONS] ❌ Permission denied:', { role, permission })
-    }
-
-    return wildcardMatch
 }
 
 /**
  * Check if any of the provided roles has a permission
  * @param roles - Array of role names
  * @param permission - The permission to check
+ * @param userType - Optional user type to validate roles against
  * @returns true if any role has the permission
  */
-export function hasAnyPermission(roles: string[], permission: string): boolean {
+export function hasAnyPermission(roles: string[], permission: string, userType?: string | null): boolean {
     // Normalize roles before checking
-    const normalizedRoles = normalizeRoles(roles)
+    let normalizedRoles = normalizeRoles(roles)
 
-    console.log('[PERMISSIONS] hasAnyPermission check:', {
-        originalRoles: roles,
-        normalizedRoles,
-        rolesCount: roles.length,
-        permission,
-    })
+    // If user type is provided, filter roles to only include valid ones
+    if (userType) {
+        normalizedRoles = filterValidRoles(normalizedRoles, userType)
+    }
 
-    const result = normalizedRoles.some(role => hasPermission(role, permission))
-
-    console.log('[PERMISSIONS] hasAnyPermission result:', {
-        roles,
-        permission,
-        result,
-    })
-
-    return result
+    return normalizedRoles.some(role => hasPermission(role, permission, userType))
 }
 
 /**
  * Check if all provided roles have a permission
  * @param roles - Array of role names
  * @param permission - The permission to check
+ * @param userType - Optional user type to validate roles against
  * @returns true if all roles have the permission
  */
-export function hasAllPermissions(roles: string[], permission: string): boolean {
-    return roles.length > 0 && roles.every(role => hasPermission(role, permission))
+export function hasAllPermissions(roles: string[], permission: string, userType?: string | null): boolean {
+    // Normalize roles before checking
+    let normalizedRoles = normalizeRoles(roles)
+
+    // If user type is provided, filter roles to only include valid ones
+    if (userType) {
+        normalizedRoles = filterValidRoles(normalizedRoles, userType)
+    }
+
+    return normalizedRoles.length > 0 && normalizedRoles.every(role => hasPermission(role, permission, userType))
 }
 
 /**
@@ -348,16 +335,24 @@ export function getRolePermissions(role: string): string[] {
 /**
  * Get all permissions for multiple roles (union of all permissions)
  * @param roles - Array of role names
+ * @param userType - Optional user type to validate roles against
  * @returns Array of unique permission strings
  */
-export function getRolesPermissions(roles: string[]): string[] {
+export function getRolesPermissions(roles: string[], userType?: string | null): string[] {
+    // Normalize roles before checking
+    let normalizedRoles = normalizeRoles(roles)
+
+    // If user type is provided, filter roles to only include valid ones
+    if (userType) {
+        normalizedRoles = filterValidRoles(normalizedRoles, userType)
+    }
+
     const allPermissions = new Set<string>()
 
-    roles.forEach(role => {
+    normalizedRoles.forEach(role => {
         const rolePerms = getRolePermissions(role)
         rolePerms.forEach(perm => allPermissions.add(perm))
     })
 
     return Array.from(allPermissions)
 }
-

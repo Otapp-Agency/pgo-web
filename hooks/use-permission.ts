@@ -1,64 +1,79 @@
 'use client'
 
 import { useMemo } from 'react'
-import { hasAnyPermission,  getRolesPermissions } from '@/lib/auth/permissions'
+import { hasAnyPermission, getRolesPermissions } from '@/lib/auth/permissions'
 
-/**
- * Hook to check if user has a specific permission
- * @param roles - Array of user roles
- * @param permission - Permission to check
- * @returns boolean indicating if user has the permission
- */
-export function usePermission(roles: string[] | undefined, permission: string): boolean {
-    return useMemo(() => {
-        if (!roles || roles.length === 0) {
-            return false
-        }
-        return hasAnyPermission(roles, permission)
-    }, [roles, permission])
+interface UsePermissionOptions {
+  permission?: string
+  permissions?: string[]
+  requireAll?: boolean
 }
 
 /**
- * Hook to check if user has any of the provided permissions
+ * Unified hook to check user permissions
  * @param roles - Array of user roles
- * @param permissions - Array of permissions to check
- * @returns boolean indicating if user has at least one permission
+ * @param options - Permission options (permission, permissions, requireAll)
+ * @param userType - Optional user type to validate roles against
+ * @returns boolean indicating if user has the required permission(s)
  */
-export function useAnyPermission(roles: string[] | undefined, permissions: string[]): boolean {
-    return useMemo(() => {
-        if (!roles || roles.length === 0 || permissions.length === 0) {
-            return false
-        }
-        return permissions.some(permission => hasAnyPermission(roles, permission))
-    }, [roles, permissions])
-}
+export function usePermission(
+  roles: string[] | undefined,
+  options: UsePermissionOptions | string,
+  userType?: string | null
+): boolean {
+  return useMemo(() => {
+    if (!roles || roles.length === 0) {
+      return false
+    }
 
-/**
- * Hook to check if user has all of the provided permissions
- * @param roles - Array of user roles
- * @param permissions - Array of permissions to check
- * @returns boolean indicating if user has all permissions
- */
-export function useAllPermissions(roles: string[] | undefined, permissions: string[]): boolean {
-    return useMemo(() => {
-        if (!roles || roles.length === 0 || permissions.length === 0) {
-            return false
-        }
-        return permissions.every(permission => hasAnyPermission(roles, permission))
-    }, [roles, permissions])
+    // Backward compatibility: if options is a string, treat it as permission
+    const opts: UsePermissionOptions = typeof options === 'string' 
+      ? { permission: options }
+      : options
+
+    // Single permission check
+    if (opts.permission) {
+      return hasAnyPermission(roles, opts.permission, userType)
+    }
+
+    // Multiple permissions check
+    if (opts.permissions && opts.permissions.length > 0) {
+      if (opts.requireAll) {
+        return opts.permissions.every(permission => 
+          hasAnyPermission(roles, permission, userType)
+        )
+      } else {
+        return opts.permissions.some(permission => 
+          hasAnyPermission(roles, permission, userType)
+        )
+      }
+    }
+
+    return false
+  }, [roles, options, userType])
 }
 
 /**
  * Hook to get all permissions for user's roles
  * @param roles - Array of user roles
+ * @param userType - Optional user type to validate roles against
  * @returns Array of permission strings
  */
-export function usePermissions(roles: string[] | undefined): string[] {
-    return useMemo(() => {
-        if (!roles || roles.length === 0) {
-            return []
-        }
-        return getRolesPermissions(roles)
-    }, [roles])
+export function usePermissions(roles: string[] | undefined, userType?: string | null): string[] {
+  return useMemo(() => {
+    if (!roles || roles.length === 0) {
+      return []
+    }
+    return getRolesPermissions(roles, userType)
+  }, [roles, userType])
+}
+
+// Backward compatibility exports
+export function useAnyPermission(roles: string[] | undefined, permissions: string[], userType?: string | null): boolean {
+  return usePermission(roles, { permissions }, userType)
+}
+
+export function useAllPermissions(roles: string[] | undefined, permissions: string[], userType?: string | null): boolean {
+  return usePermission(roles, { permissions, requireAll: true }, userType)
 }
 

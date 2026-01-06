@@ -1,4 +1,5 @@
 import { PERMISSIONS } from './auth/permissions';
+import { USER_TYPES } from './auth/user-types';
 
 /**
  * Menu Item Interface
@@ -12,6 +13,8 @@ export interface MenuItem {
     permission?: string        // Single permission check
     permissions?: string[]     // Multiple permissions (OR logic)
     requireAll?: boolean       // If true, requires ALL permissions (AND logic)
+    allowedUserTypes?: string[] // Restrict menu item to specific user types (e.g., ['SYSTEM_USER', 'ROOT_USER'])
+    subItems?: MenuItem[]      // Sub-menu items
 }
 
 /**
@@ -36,7 +39,8 @@ export const menuConfig = {
             title: "Gateways",
             url: "/gateways",
             icon: "IconCreditCard",
-            permission: PERMISSIONS.TRANSACTIONS.VIEW,
+            permission: PERMISSIONS.PAYMENT_GATEWAYS.VIEW,
+            allowedUserTypes: [USER_TYPES.SYSTEM_USER, USER_TYPES.ROOT_USER], // Only system users can see gateways
         },
         {
             title: "Merchants",
@@ -49,6 +53,7 @@ export const menuConfig = {
             url: "/users",
             icon: "IconUserScan",
             permission: PERMISSIONS.USERS.VIEW,
+            allowedUserTypes: [USER_TYPES.SYSTEM_USER, USER_TYPES.ROOT_USER], // Only system users can manage users
             subItems: [
                 {
                     title: "Users",
@@ -73,6 +78,7 @@ export const menuConfig = {
             url: "/logs",
             icon: "IconChartBar",
             permission: PERMISSIONS.AUDIT_AND_LOGS.VIEW,
+            allowedUserTypes: [USER_TYPES.SYSTEM_USER, USER_TYPES.ROOT_USER], // Only system users can see logs
         },
     ] as MenuItem[],
 }

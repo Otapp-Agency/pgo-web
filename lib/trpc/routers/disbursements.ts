@@ -247,6 +247,21 @@ export const disbursementsRouter = createTRPCRouter({
         cache: 'no-store',
       });
 
+      // To display the response body, you need to await and parse it (for example, as JSON or text).
+      // For easy debugging, you can clone the response and parse without consuming the original stream.
+      try {
+        const debugClone = response.clone();
+        const bodyText = await debugClone.text();
+        console.log('Disbursement Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: bodyText,
+        });
+      } catch (e) {
+        console.log('Disbursement Response: Unable to display body', e);
+      }
+
       if (!response.ok) {
         let errorMessage = 'Failed to fetch disbursements';
 

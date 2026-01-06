@@ -2,7 +2,33 @@ import 'server-only'
 
 import { redirect } from 'next/navigation'
 import { verifySession } from '@/lib/auth/services/auth.service'
-import { hasPermission, hasAnyPermission, hasAllPermissions, getRolesPermissions } from '@/lib/auth/permissions'
+import { hasAnyPermission, getRolesPermissions } from '@/lib/auth/permissions'
+import { validateRolesForUserType } from '@/lib/auth/user-types'
+
+/**
+ * Get validated session with roles
+ * Returns null if session is invalid, missing roles, or roles don't match user type
+ */
+async function getValidatedSession() {
+  try {
+    const session = await verifySession()
+    if (!session?.roles || session.roles.length === 0) {
+      return null
+    }
+
+    // Validate user type and roles
+    if (session.userType) {
+      const validation = validateRolesForUserType(session.roles, session.userType)
+      if (!validation.isValid) {
+        return null
+      }
+    }
+
+    return session
+  } catch {
+    return null
+  }
+}
 
 /**
  * Check if the current user has a specific permission
@@ -11,15 +37,9 @@ import { hasPermission, hasAnyPermission, hasAllPermissions, getRolesPermissions
  * @returns true if user has permission, false otherwise
  */
 export async function checkPermission(permission: string): Promise<boolean> {
-  try {
-    const session = await verifySession()
-    if (!session?.roles || session.roles.length === 0) {
-      return false
-    }
-    return hasAnyPermission(session.roles, permission)
-  } catch {
-    return false
-  }
+  const session = await getValidatedSession()
+  if (!session) return false
+  return hasAnyPermission(session.roles, permission, session.userType)
 }
 
 /**
@@ -30,14 +50,12 @@ export async function checkPermission(permission: string): Promise<boolean> {
  * @throws redirects to unauthorized page if permission denied
  */
 export async function requirePermission(permission: string): Promise<void> {
-  const session = await verifySession()
-  
-  if (!session?.roles || session.roles.length === 0) {
+  const session = await getValidatedSession()
+  if (!session) {
     redirect('/unauthorized')
   }
-  
-  const hasAccess = hasAnyPermission(session.roles, permission)
-  
+
+  const hasAccess = hasAnyPermission(session.roles, permission, session.userType)
   if (!hasAccess) {
     redirect('/unauthorized')
   }
@@ -49,16 +67,15 @@ export async function requirePermission(permission: string): Promise<void> {
  * @param permissions - Array of permissions to check
  */
 export async function requireAnyPermission(permissions: string[]): Promise<void> {
-  const session = await verifySession()
-  
-  if (!session?.roles || session.roles.length === 0) {
+  const session = await getValidatedSession()
+  if (!session) {
     redirect('/unauthorized')
   }
-  
-  const hasAccess = permissions.some(permission => 
-    hasAnyPermission(session.roles, permission)
+
+  const hasAccess = permissions.some(permission =>
+    hasAnyPermission(session.roles, permission, session.userType)
   )
-  
+
   if (!hasAccess) {
     redirect('/unauthorized')
   }
@@ -70,16 +87,15 @@ export async function requireAnyPermission(permissions: string[]): Promise<void>
  * @param permissions - Array of permissions to check
  */
 export async function requireAllPermissions(permissions: string[]): Promise<void> {
-  const session = await verifySession()
-  
-  if (!session?.roles || session.roles.length === 0) {
+  const session = await getValidatedSession()
+  if (!session) {
     redirect('/unauthorized')
   }
-  
-  const hasAccess = permissions.every(permission => 
-    hasAnyPermission(session.roles, permission)
+
+  const hasAccess = permissions.every(permission =>
+    hasAnyPermission(session.roles, permission, session.userType)
   )
-  
+
   if (!hasAccess) {
     redirect('/unauthorized')
   }
@@ -90,15 +106,9 @@ export async function requireAllPermissions(permissions: string[]): Promise<void
  * @returns Array of permission strings
  */
 export async function getCurrentUserPermissions(): Promise<string[]> {
-  try {
-    const session = await verifySession()
-    if (!session?.roles || session.roles.length === 0) {
-      return []
-    }
-    return getRolesPermissions(session.roles)
-  } catch {
-    return []
-  }
+  const session = await getValidatedSession()
+  if (!session) return []
+  return getRolesPermissions(session.roles, session.userType)
 }
 
 /**
@@ -107,17 +117,11 @@ export async function getCurrentUserPermissions(): Promise<string[]> {
  * @returns true if user has at least one permission
  */
 export async function checkAnyPermission(permissions: string[]): Promise<boolean> {
-  try {
-    const session = await verifySession()
-    if (!session?.roles || session.roles.length === 0) {
-      return false
-    }
-    return permissions.some(permission => 
-      hasAnyPermission(session.roles, permission)
-    )
-  } catch {
-    return false
-  }
+  const session = await getValidatedSession()
+  if (!session) return false
+  return permissions.some(permission =>
+    hasAnyPermission(session.roles, permission, session.userType)
+  )
 }
 
 /**
@@ -126,16 +130,10 @@ export async function checkAnyPermission(permissions: string[]): Promise<boolean
  * @returns true if user has all permissions
  */
 export async function checkAllPermissions(permissions: string[]): Promise<boolean> {
-  try {
-    const session = await verifySession()
-    if (!session?.roles || session.roles.length === 0) {
-      return false
-    }
-    return permissions.every(permission => 
-      hasAnyPermission(session.roles, permission)
-    )
-  } catch {
-    return false
-  }
+  const session = await getValidatedSession()
+  if (!session) return false
+  return permissions.every(permission =>
+    hasAnyPermission(session.roles, permission, session.userType)
+  )
 }
 

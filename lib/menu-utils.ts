@@ -4,15 +4,17 @@ import { hasAnyPermission, hasAllPermissions } from './auth/permissions'
 import { MenuItem } from './menu-config'
 
 /**
- * Filter menu items based on user roles and permissions
+ * Filter menu items based on user roles, permissions, and user type
  * 
  * @param items - Array of menu items to filter
  * @param roles - Array of user roles
+ * @param userType - Optional user type to validate roles against
  * @returns Filtered array of menu items that the user has access to
  */
 export function filterMenuItems<T extends MenuItem>(
   items: T[],
-  roles: string[]
+  roles: string[],
+  userType?: string | null
 ): T[] {
   if (!roles || roles.length === 0) {
     // If no roles, only return items without permission requirements
@@ -20,14 +22,22 @@ export function filterMenuItems<T extends MenuItem>(
   }
 
   return items.filter(item => {
-    // If no permission requirement, item is always visible
+    // Check user type restriction first
+    if (item.allowedUserTypes && item.allowedUserTypes.length > 0) {
+      if (!userType || !item.allowedUserTypes.includes(userType)) {
+        // User type not allowed, hide item
+        return false
+      }
+    }
+
+    // If no permission requirement, item is always visible (if user type check passed)
     if (!item.permission && !item.permissions) {
       return true
     }
 
     // Single permission check
     if (item.permission) {
-      return hasAnyPermission(roles, item.permission)
+      return hasAnyPermission(roles, item.permission, userType)
     }
 
     // Multiple permissions check
@@ -35,12 +45,12 @@ export function filterMenuItems<T extends MenuItem>(
       if (item.requireAll) {
         // User needs ALL permissions (AND logic)
         return item.permissions.every(permission =>
-          hasAnyPermission(roles, permission)
+          hasAnyPermission(roles, permission, userType)
         )
       } else {
         // User needs ANY permission (OR logic)
         return item.permissions.some(permission =>
-          hasAnyPermission(roles, permission)
+          hasAnyPermission(roles, permission, userType)
         )
       }
     }
@@ -49,5 +59,3 @@ export function filterMenuItems<T extends MenuItem>(
     return false
   })
 }
-
-// 0791392577  0619499718

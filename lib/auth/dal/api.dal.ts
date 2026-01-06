@@ -35,22 +35,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
 
     const result = await response.json()
 
-    console.log('[API DAL] Login API Response:')
-    console.log('  - Status:', response.status)
-    console.log('  - Response keys:', Object.keys(result))
-    console.log('  - Full response:', JSON.stringify(result, null, 2))
-    
-    if (result.data) {
-      console.log('  - Response data keys:', Object.keys(result.data))
-      console.log('  - Roles in response.data:', result.data.roles)
-      console.log('  - Roles type:', typeof result.data.roles)
-      console.log('  - Is array:', Array.isArray(result.data.roles))
-      if (result.data.roles) {
-        console.log('  - Roles values:', result.data.roles)
-        console.log('  - Roles length:', result.data.roles.length)
-      }
-    }
-
     // Validate response structure
     if (typeof result !== 'object' || result === null || !('status' in result) || !('data' in result)) {
       throw new Error('Invalid response format from server')

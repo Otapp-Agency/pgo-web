@@ -1,23 +1,74 @@
 # RBAC Permission System - Usage Guide
 
-This guide explains how to use the Role-Based Access Control (RBAC) permission system in your Next.js application.
+This guide explains how to use the Role-Based Access Control (RBAC) permission system with User Type validation in your Next.js application.
 
 ## Overview
 
-The RBAC system provides:
-- **Permission constants** - Centralized permission definitions
+The RBAC system provides a three-tier authorization model:
+- **User Type Layer** - Validates that roles match the user's type (prevents role escalation)
 - **Role-to-permission mapping** - Define what each role can do
+- **Permission constants** - Centralized permission definitions
+
+The system also provides:
 - **Server-side authorization** - Protect Server Components and Server Actions
 - **Client-side hooks** - Check permissions in Client Components
 - **UI components** - Conditionally render content based on permissions
 
+### Authorization Flow
+
+```
+User Type → Valid Roles (filtered) → Permissions
+```
+
+This ensures that:
+- A `MERCHANT_USER` cannot have `SYSTEM_ADMIN` role (role escalation prevention)
+- Roles are validated against user type before permission checks
+- Invalid roles are filtered out and logged for security monitoring
+
 ## Table of Contents
 
-1. [Permission Constants](#permission-constants)
-2. [Server-Side Usage](#server-side-usage)
-3. [Client-Side Usage](#client-side-usage)
-4. [UI Components](#ui-components)
-5. [Examples](#examples)
+1. [User Types](#user-types)
+2. [Permission Constants](#permission-constants)
+3. [Server-Side Usage](#server-side-usage)
+4. [Client-Side Usage](#client-side-usage)
+5. [UI Components](#ui-components)
+6. [Examples](#examples)
+
+---
+
+## User Types
+
+The system supports three user types, each with their own set of valid roles:
+
+### ROOT_USER
+- Can have: `SUPER_ADMIN` role
+- Full system access and control
+
+### SYSTEM_USER
+- Can have system roles such as:
+  - `SYSTEM_ADMIN`, `SECURITY_ADMIN`, `BUSINESS_ADMIN`, `FINANCE_ADMIN`, `COMPLIANCE_ADMIN`
+  - `PAYMENT_OPERATOR`, `PAYMENT_ANALYST`, `SETTLEMENT_OPERATOR`, `RECONCILIATION_USER`
+  - `SUPPORT_AGENT`, `SUPPORT_SUPERVISOR`, `ESCALATION_MANAGER`
+  - `TECHNICAL_ADMIN`, `DEVELOPER`, `SYSTEM_MONITOR`
+  - `AUDITOR`, `COMPLIANCE_OFFICER`, `RISK_ANALYST`
+
+### MERCHANT_USER
+- Can have merchant roles:
+  - `MERCHANT_ADMIN`, `MERCHANT_USER`, `MERCHANT_FINANCE`, `MERCHANT_SUPPORT`
+
+### Security Benefits
+
+1. **Role Escalation Prevention**: Users cannot have roles outside their user type
+2. **Clear Boundaries**: System users and merchant users are completely isolated
+3. **Defense in Depth**: Multiple layers of authorization checks
+4. **Audit Trail**: Invalid role attempts are logged for security monitoring
+
+### User Type Validation
+
+User type validation happens automatically in all authorization functions. The system:
+- Filters roles to only include those valid for the user's type
+- Logs warnings when invalid roles are detected
+- Denies access if roles don't match user type
 
 ---
 
@@ -126,12 +177,12 @@ const permissions = await getCurrentUserPermissions()
 
 import { usePermission, usePermissions } from '@/hooks/use-permission'
 import { PERMISSIONS } from '@/lib/permissions'
-import { getUserFromSession } from '@/lib/dal'
+import { getSession } from '@/lib/auth/services/auth.service'
 
 export function UserActions() {
-  const user = await getUserFromSession()
-  const canCreate = usePermission(user?.roles, PERMISSIONS.USERS.CREATE)
-  const canDelete = usePermission(user?.roles, PERMISSIONS.USERS.DELETE)
+  const session = await getSession()
+  const canCreate = usePermission(session?.roles, PERMISSIONS.USERS.CREATE, session?.userType)
+  const canDelete = usePermission(session?.roles, PERMISSIONS.USERS.DELETE, session?.userType)
   
   return (
     <div>
@@ -148,9 +199,12 @@ export function UserActions() {
 'use client'
 
 import { usePermissions } from '@/hooks/use-permission'
+import { getSession } from '@/lib/auth/services/auth.service'
 
-const permissions = usePermissions(user?.roles)
+const session = await getSession()
+const permissions = usePermissions(session?.roles, session?.userType)
 // Returns: ['users.*', 'transactions.view', ...]
+// Only includes permissions from roles valid for the user type
 ```
 
 ---
@@ -166,21 +220,24 @@ Conditionally renders content based on permissions:
 
 import { ProtectedContent } from '@/components/protected-content'
 import { PERMISSIONS } from '@/lib/permissions'
+import { getSession } from '@/lib/auth/services/auth.service'
 
 export function UserManagement() {
-  const user = await getUserFromSession()
+  const session = await getSession()
   
   return (
     <div>
       <ProtectedContent 
-        roles={user?.roles} 
+        roles={session?.roles}
+        userType={session?.userType}
         permission={PERMISSIONS.USERS.CREATE}
       >
         <CreateUserButton />
       </ProtectedContent>
       
       <ProtectedContent 
-        roles={user?.roles} 
+        roles={session?.roles}
+        userType={session?.userType}
         permissions={[PERMISSIONS.USERS.VIEW, PERMISSIONS.USERS.UPDATE]}
         fallback={<p>No access</p>}
       >
@@ -200,13 +257,15 @@ Shows error message if permission denied:
 
 import { RequirePermission } from '@/components/require-permission'
 import { PERMISSIONS } from '@/lib/permissions'
+import { getSession } from '@/lib/auth/services/auth.service'
 
 export function AdminPanel() {
-  const user = await getUserFromSession()
+  const session = await getSession()
   
   return (
     <RequirePermission 
-      roles={user?.roles}
+      roles={session?.roles}
+      userType={session?.userType}
       permission={PERMISSIONS.SYSTEM.ADMIN}
       showError
       errorMessage="Admin access required"
@@ -259,29 +318,32 @@ export async function refundTransaction(transactionId: string) {
 
 import { ProtectedContent } from '@/components/protected-content'
 import { PERMISSIONS } from '@/lib/permissions'
-import { getUserFromSession } from '@/lib/dal'
+import { getSession } from '@/lib/auth/services/auth.service'
 
 export async function TransactionActions({ transactionId }: { transactionId: string }) {
-  const user = await getUserFromSession()
+  const session = await getSession()
   
   return (
     <div className="flex gap-2">
       <ProtectedContent 
-        roles={user?.roles}
+        roles={session?.roles}
+        userType={session?.userType}
         permission={PERMISSIONS.TRANSACTIONS.UPDATE_STATUS}
       >
         <button>Update Status</button>
       </ProtectedContent>
       
       <ProtectedContent 
-        roles={user?.roles}
+        roles={session?.roles}
+        userType={session?.userType}
         permission={PERMISSIONS.TRANSACTIONS.REFUND}
       >
         <button>Refund</button>
       </ProtectedContent>
       
       <ProtectedContent 
-        roles={user?.roles}
+        roles={session?.roles}
+        userType={session?.userType}
         permission={PERMISSIONS.TRANSACTIONS.DELETE}
       >
         <button>Delete</button>
@@ -345,6 +407,8 @@ export const ROLE_PERMISSIONS = {
 4. **Provide fallback UI** - Use `fallback` prop in ProtectedContent for better UX
 5. **Cache permission lookups** - Use `getUserPermissions()` which is cached
 6. **Combine with route protection** - Use proxy.ts for route-level protection, permissions for feature-level
+7. **Pass userType to client components** - Always pass `userType` from session to hooks and components for proper validation
+8. **Trust the server** - Server-side authorization automatically validates user type, client-side is for UI only
 
 ---
 
@@ -354,12 +418,21 @@ export const ROLE_PERMISSIONS = {
 - Check if user has the correct role in session
 - Verify role is mapped in `ROLE_PERMISSIONS`
 - Ensure permission constant matches the check
+- **Check user type validation** - Verify that the role is valid for the user's type
+- Check browser console for warnings about invalid roles
 
 ### Redirecting unexpectedly?
 - `requirePermission()` redirects to `/unauthorized` if permission denied
 - Make sure `/unauthorized` route exists or update redirect in `lib/auth.ts`
+- **User type validation** - If roles don't match user type, access is denied
 
 ### Client component not updating?
 - Ensure roles are passed correctly to hooks
 - Check if roles array is reactive/updates when user changes
+- **Pass userType** - Make sure `userType` is passed to hooks and components
+
+### Invalid roles detected?
+- Check browser console for warnings about invalid roles
+- Verify that roles assigned to user match their user type
+- Invalid roles are automatically filtered out, but this may cause permission checks to fail
 

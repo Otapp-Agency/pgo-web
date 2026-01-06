@@ -50,24 +50,9 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
 
     const requirePasswordChange = data.requirePasswordChange || false;
 
-    // Log API response roles
-    console.log('[AUTH SERVICE] API Login Response:')
-    console.log('  - Raw roles from API:', data.roles)
-    console.log('  - Roles type:', typeof data.roles)
-    console.log('  - Is array:', Array.isArray(data.roles))
-    console.log('  - Full API data:', JSON.stringify({ 
-        username: data.username,
-        roles: data.roles,
-        userType: data.userType 
-    }, null, 2))
-
     // Normalize roles (convert display names to codes if needed)
     const rawRoles = Array.isArray(data.roles) ? data.roles : []
     const normalizedRoles = normalizeRoles(rawRoles)
-
-    console.log('[AUTH SERVICE] Role Normalization:')
-    console.log('  - Raw roles from API:', rawRoles)
-    console.log('  - Normalized roles (codes):', normalizedRoles)
 
     // Prepare session data
     const sessionData: SessionData = {
@@ -82,12 +67,6 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
         userType: data.userType,
         requirePasswordChange,
     }
-
-    console.log('[AUTH SERVICE] Session Data Prepared:')
-    console.log('  - User ID:', sessionData.userId)
-    console.log('  - Username:', sessionData.username)
-    console.log('  - Roles (normalized):', sessionData.roles)
-    console.log('  - Roles count:', sessionData.roles.length)
 
     await createSession(sessionData)
 
