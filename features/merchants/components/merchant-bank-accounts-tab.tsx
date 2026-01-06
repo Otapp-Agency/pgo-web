@@ -63,7 +63,7 @@ export default function MerchantBankAccountsTab({ merchantUid, merchantName }: M
                 queryClient.invalidateQueries({ queryKey: ['bank-accounts', 'list', variables.uid] });
                 toast.success(data.message || 'Bank account deactivated successfully');
             },
-            onError: (error: Error) => {
+            onError: (error) => {
                 toast.error(error.message || 'Failed to deactivate bank account');
             },
         })

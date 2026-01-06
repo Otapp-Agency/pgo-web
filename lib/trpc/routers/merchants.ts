@@ -267,11 +267,11 @@ export const merchantsRouter = createTRPCRouter({
                 let errorCode: 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR' = 'INTERNAL_SERVER_ERROR';
                 if (response.status >= 400 && response.status < 500) {
                     if (response.status === 401) {
-                        errorCode = 'UNAUTHORIZED';
+                        errorCode = 'BAD_REQUEST';
                     } else if (response.status === 403) {
-                        errorCode = 'FORBIDDEN';
+                        errorCode = 'BAD_REQUEST';
                     } else if (response.status === 404) {
-                        errorCode = 'NOT_FOUND';
+                        errorCode = 'BAD_REQUEST';
                     } else {
                         errorCode = 'BAD_REQUEST';
                     }

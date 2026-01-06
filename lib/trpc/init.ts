@@ -1,9 +1,9 @@
 import { TRPCError, initTRPC } from '@trpc/server';
-import { cache } from 'react';
+import { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
 // import superjson from 'superjson';
 import { getSession } from '@/lib/auth/services/auth.service';
 
-export const createTRPCContext = cache(async (opts?: { headers: Headers }) => {
+export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
   /**
    * @see: https://trpc.io/docs/server/context
    */
@@ -14,7 +14,7 @@ export const createTRPCContext = cache(async (opts?: { headers: Headers }) => {
     userId: session?.userId,
     token: session?.token,
   };
-});
+};
 
 // Avoid exporting the entire t-object
 // since it's not very descriptive.

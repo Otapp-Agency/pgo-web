@@ -59,11 +59,6 @@ export function NewSubmerchantForm({ parentMerchantId, onSuccess }: NewSubmercha
                 console.error('Sub-merchant creation error:', error);
                 console.error('Error details:', {
                     message: error.message,
-                    cause: error.cause,
-                    stack: error.stack,
-                    data: (error as any).data,
-                    shape: (error as any).shape,
-                    name: error.name,
                 });
 
                 // Extract error message from tRPC error

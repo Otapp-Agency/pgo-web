@@ -64,7 +64,7 @@ export function RefundTransactionDialog({
                     toast.success(data.message || 'Transaction refunded successfully');
                     handleClose();
                 },
-                onError: (error: Error) => {
+                onError: (error) => {
                     toast.error(error.message || 'Failed to refund transaction');
                 },
             }
@@ -184,7 +184,7 @@ export function CompleteTransactionDialog({
                     toast.success(data.message || 'Transaction completed successfully');
                     handleClose();
                 },
-                onError: (error: Error) => {
+                onError: (error) => {
                     toast.error(error.message || 'Failed to complete transaction');
                 },
             }
@@ -303,7 +303,7 @@ export function CancelTransactionDialog({
                     toast.success(data.message || 'Transaction cancelled successfully');
                     handleClose();
                 },
-                onError: (error: Error) => {
+                onError: (error) => {
                     toast.error(error.message || 'Failed to cancel transaction');
                 },
             }

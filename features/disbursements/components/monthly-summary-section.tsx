@@ -162,7 +162,7 @@ export function MonthlySummarySection() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Merchants</SelectItem>
-                            {merchants.map((merchant) => (
+                            {merchants.map((merchant: { id: string; name: string }) => (
                                 <SelectItem key={merchant.id} value={merchant.id}>
                                     {merchant.name}
                                 </SelectItem>

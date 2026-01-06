@@ -1,4 +1,5 @@
-import { HydrateClient } from '@/features/logs/queries/server';
+import { HydrateClient, getQueryClient } from '@/lib/server-query-client';
+import { trpc } from '@/lib/trpc/server';
 import { requirePermission } from '@/lib/auth/auth';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { Suspense } from 'react';
@@ -9,6 +10,14 @@ import { MERCHANTS_TABLE_COLUMNS } from '@/components/ui/table-skeleton-presets'
 
 export default async function Page() {
   await requirePermission(PERMISSIONS.AUDIT_AND_LOGS.VIEW);
+
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.logs.list.queryOptions({
+      page: '0',
+      per_page: '15',
+    }),
+  );
 
   return (
     <HydrateClient>

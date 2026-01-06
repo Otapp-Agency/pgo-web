@@ -3,6 +3,7 @@ import { authRouter } from './auth';
 import { dashboardRouter } from './dashboard';
 import { disbursementsRouter } from './disbursements';
 import { gatewaysRouter } from './gateways';
+import { logsRouter } from './logs';
 import { merchantsRouter } from './merchants';
 import { transactionsRouter } from './transactions';
 import { usersRouter } from './users';
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   dashboard: dashboardRouter,
   disbursements: disbursementsRouter,
   gateways: gatewaysRouter,
+  logs: logsRouter,
   merchants: merchantsRouter,
   transactions: transactionsRouter,
   users: usersRouter,

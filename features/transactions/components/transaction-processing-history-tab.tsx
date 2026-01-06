@@ -71,7 +71,7 @@ export default function TransactionProcessingHistoryTab({ transactionId }: Trans
         );
     }
 
-    if (!history || history.length === 0) {
+    if (!history || !Array.isArray(history) || history.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -88,7 +88,7 @@ export default function TransactionProcessingHistoryTab({ transactionId }: Trans
     }
 
     // Sort by timestamp descending (most recent first)
-    const sortedHistory = [...history].sort((a, b) => {
+    const sortedHistory = history.slice().sort((a, b) => {
         const dateA = new Date(a.timestamp).getTime();
         const dateB = new Date(b.timestamp).getTime();
         return dateB - dateA;

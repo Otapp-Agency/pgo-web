@@ -64,7 +64,6 @@ export function NewPaymentGatewayForm({ onSuccess }: NewPaymentGatewayFormProps)
 
     const form = useForm<CreatePaymentGatewayInput>({
         resolver: zodResolver(
-            // @ts-expect-error - Zod v4 compatibility issue with @hookform/resolvers v5
             CreatePaymentGatewaySchema
         ),
         defaultValues: {
