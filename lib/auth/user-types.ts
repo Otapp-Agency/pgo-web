@@ -15,6 +15,42 @@ export const USER_TYPES = {
 export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES]
 
 /**
+ * Map of possible userType values to normalized constants
+ * Handles various API response formats (lowercase, display names, etc.)
+ */
+const USER_TYPE_ALIASES: Record<string, string> = {
+    // Exact matches
+    'ROOT_USER': USER_TYPES.ROOT_USER,
+    'SYSTEM_USER': USER_TYPES.SYSTEM_USER,
+    'MERCHANT_USER': USER_TYPES.MERCHANT_USER,
+    // Lowercase variations
+    'root_user': USER_TYPES.ROOT_USER,
+    'system_user': USER_TYPES.SYSTEM_USER,
+    'merchant_user': USER_TYPES.MERCHANT_USER,
+    // Display names
+    'Root User': USER_TYPES.ROOT_USER,
+    'System User': USER_TYPES.SYSTEM_USER,
+    'Merchant User': USER_TYPES.MERCHANT_USER,
+    // Camel case variations
+    'rootUser': USER_TYPES.ROOT_USER,
+    'systemUser': USER_TYPES.SYSTEM_USER,
+    'merchantUser': USER_TYPES.MERCHANT_USER,
+}
+
+/**
+ * Normalize userType to match our constants
+ * Handles various API response formats
+ * @param userType - The userType from API (may be in different formats)
+ * @returns Normalized userType constant or the original value if not found
+ */
+export function normalizeUserType(userType: string | undefined | null): string | undefined {
+    if (!userType) {
+        return undefined
+    }
+    return USER_TYPE_ALIASES[userType] || userType
+}
+
+/**
  * User Type to Valid Roles Mapping
  * Defines which roles are valid for each user type
  * This prevents role escalation (e.g., MERCHANT_USER cannot have SYSTEM_ADMIN role)

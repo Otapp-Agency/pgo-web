@@ -12,13 +12,15 @@ import {
 import { getUserFromSession, verifySession } from "@/lib/auth/services/auth.service"
 import { menuConfig } from "@/lib/menu-config"
 import { filterMenuItems } from "@/lib/menu-utils"
+import { normalizeUserType } from "@/lib/auth/user-types"
 import { Logo } from "@/components/logo"
 
 export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = await getUserFromSession()
   const session = await verifySession()
   const userRoles = session?.roles || []
-  const userType = session?.userType
+  // Normalize userType to handle different API formats
+  const userType = normalizeUserType(session?.userType)
 
   // Filter menu items based on user roles and user type
   const filteredNavMain = filterMenuItems(menuConfig.navMain, userRoles, userType)

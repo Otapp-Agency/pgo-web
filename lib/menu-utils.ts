@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { hasAnyPermission, hasAllPermissions } from './auth/permissions'
+import { hasAnyPermission } from './auth/permissions'
 import { MenuItem } from './menu-config'
 
 /**
@@ -25,7 +25,6 @@ export function filterMenuItems<T extends MenuItem>(
     // Check user type restriction first
     if (item.allowedUserTypes && item.allowedUserTypes.length > 0) {
       if (!userType || !item.allowedUserTypes.includes(userType)) {
-        // User type not allowed, hide item
         return false
       }
     }
@@ -43,19 +42,16 @@ export function filterMenuItems<T extends MenuItem>(
     // Multiple permissions check
     if (item.permissions && item.permissions.length > 0) {
       if (item.requireAll) {
-        // User needs ALL permissions (AND logic)
         return item.permissions.every(permission =>
           hasAnyPermission(roles, permission, userType)
         )
       } else {
-        // User needs ANY permission (OR logic)
         return item.permissions.some(permission =>
           hasAnyPermission(roles, permission, userType)
         )
       }
     }
 
-    // Default: hide if no permission check passed
     return false
   })
 }

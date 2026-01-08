@@ -12,6 +12,7 @@ import { SessionData, LoginCredentials } from '../types'
 import * as sessionDal from '../dal/session.dal'
 import * as apiDal from '../dal/api.dal'
 import { getRolesPermissions, normalizeRoles } from '../permissions'
+import { normalizeUserType } from '../user-types'
 import { User } from '@/lib/types'
 
 /**
@@ -54,6 +55,9 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
     const rawRoles = Array.isArray(data.roles) ? data.roles : []
     const normalizedRoles = normalizeRoles(rawRoles)
 
+    // Normalize userType (handle different API formats)
+    const normalizedUserType = normalizeUserType(data.userType)
+
     // Prepare session data
     const sessionData: SessionData = {
         userId: data.id || data.uid || '',
@@ -64,7 +68,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
         name: data.name || data.username,
         email: data.email || '',
         roles: normalizedRoles, // Store normalized role codes
-        userType: data.userType,
+        userType: normalizedUserType, // Store normalized userType
         requirePasswordChange,
     }
 
